@@ -1,0 +1,35 @@
+url: https://username.github.io/PSINetR/
+
+template:
+  bootstrap: 5
+  bootswatch: cosmo
+  
+navbar:
+  structure:
+    left:  [intro, reference, articles, tutorials, news]
+    right: [search, github]
+
+reference:
+- title: "Data Access"
+  desc: >
+    Functions for downloading and checking data availability
+  contents:
+  - get_psi_data
+  - check_psi_data
+
+- title: "Utility Functions"
+  desc: "Helper functions"
+  contents:
+  - matches("^get_")
+
+articles:
+- title: "Getting Started"
+  desc: >
+    Basic introduction to PSINetR
+  contents:
+  - getting-started
+- title: "Working with Data"
+  desc: >
+    Tutorials on working with plant water potential data
+  contents:
+  - working-with-duckdb

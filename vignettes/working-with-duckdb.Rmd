@@ -1,0 +1,130 @@
+---
+title: "Working with Plant Water Potential Data in DuckDB"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Working with Plant Water Potential Data in DuckDB}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE  # Set to FALSE since we don't have actual data during package build
+)
+```
+
+```{r setup}
+library(PSINetR)
+library(dplyr)
+library(DBI)
+library(duckdb)
+```
+
+## Introduction
+
+This vignette demonstrates how to work with plant water potential data stored in DuckDB format. DuckDB is a high-performance analytical database system that works well with R and provides efficient querying capabilities.
+
+## Connecting to the Database
+
+First, let's download the DuckDB data (if you haven't already) and connect to it:
+
+```{r connect}
+# Download the data (if not already available)
+data_path <- get_psi_data(format = "duckdb")
+
+# Connect to the DuckDB database
+con <- dbConnect(duckdb::duckdb(), data_path)
+
+# List available tables
+tables <- dbListTables(con)
+print(tables)
+```
+
+## Basic Querying
+
+Now that we're connected, let's explore the data with some basic queries:
+
+```{r basic_queries}
+# View the structure of a table
+dbListFields(con, "measurements")
+
+# Get a preview of the data
+measurements <- dbGetQuery(con, "SELECT * FROM measurements LIMIT 10")
+print(measurements)
+
+# Get summary statistics
+summary_stats <- dbGetQuery(con, "
+  SELECT 
+    COUNT(*) as count,
+    AVG(water_potential) as avg_potential,
+    MIN(water_potential) as min_potential,
+    MAX(water_potential) as max_potential
+  FROM measurements
+")
+print(summary_stats)
+```
+
+## Using dplyr with DuckDB
+
+You can also use dplyr syntax to work with the database, which often makes complex queries more readable:
+
+```{r dplyr_queries}
+# Create a reference to the table
+measurements_tbl <- tbl(con, "measurements")
+species_tbl <- tbl(con, "species")
+
+# Query using dplyr syntax
+results <- measurements_tbl %>%
+  left_join(species_tbl, by = "species_id") %>%
+  group_by(scientific_name) %>%
+  summarize(
+    count = n(),
+    avg_potential = mean(water_potential, na.rm = TRUE),
+    min_potential = min(water_potential, na.rm = TRUE),
+    max_potential = max(water_potential, na.rm = TRUE)
+  ) %>%
+  arrange(desc(count)) %>%
+  collect()  # This executes the query and brings results into R
+
+print(results)
+```
+
+## Advanced Analyses
+
+Here are some examples of more advanced analyses:
+
+```{r advanced_analyses}
+# Seasonal patterns in water potential
+seasonal_patterns <- measurements_tbl %>%
+  mutate(month = extract(date, '%m')) %>%
+  group_by(month) %>%
+  summarize(
+    avg_potential = mean(water_potential, na.rm = TRUE),
+    sample_count = n()
+  ) %>%
+  collect()
+
+# Comparing water potential across different habitats
+habitat_comparison <- measurements_tbl %>%
+  left_join(tbl(con, "sites"), by = "site_id") %>%
+  group_by(habitat_type) %>%
+  summarize(
+    avg_potential = mean(water_potential, na.rm = TRUE),
+    sample_count = n()
+  ) %>%
+  collect()
+```
+
+## Disconnecting
+
+Always remember to disconnect when you're done:
+
+```{r disconnect}
+dbDisconnect(con)
+```
+
+## Conclusion
+
+This vignette demonstrated how to work with plant water potential data stored in DuckDB format. DuckDB provides efficient querying capabilities that work well with both SQL and dplyr syntax, making it a powerful tool for analyzing large datasets.

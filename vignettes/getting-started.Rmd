@@ -1,0 +1,73 @@
+---
+title: "Getting Started with PSINetR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with PSINetR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(PSINetR)
+```
+
+## Introduction
+
+PSINetR provides functions to access and work with plant water potential data. This vignette demonstrates how to download, access, and analyze this data.
+
+## Downloading the Data
+
+The plant water potential data can be downloaded from either a repository or Zenodo. By default, the data is downloaded as a DuckDB file, but it can also be downloaded as CSV files.
+
+```{r downloading, eval=FALSE}
+# Download data from repository as DuckDB (default)
+get_psi_data()
+
+# Download data from Zenodo as CSV files
+get_psi_data(source = "zenodo", format = "csv")
+
+# If the repository is private, provide a GitHub token
+get_psi_data(github_token = "your_github_token")
+```
+
+## Checking if Data is Available
+
+Before attempting to use the data, you can check if it's available locally.
+
+```{r checking, eval=FALSE}
+# Check if DuckDB data is available
+check_psi_data()
+
+# Check if CSV data is available
+check_psi_data(format = "csv")
+
+# Check and validate the data
+check_psi_data(validate = TRUE)
+```
+
+## Working with the Data
+
+After downloading the data, you can start working with it. The following examples demonstrate basic data analysis workflows.
+
+### Example 1: Basic Data Exploration
+
+[Example code for data exploration will be added here]
+
+### Example 2: Visualizing Plant Water Potential Data
+
+[Example code for data visualization will be added here]
+
+### Example 3: Advanced Analysis
+
+[Example code for advanced analysis will be added here]
+
+## Conclusion
+
+This vignette provided a basic introduction to the PSINetR package. For more detailed information on specific topics, refer to the other vignettes and the function documentation.
