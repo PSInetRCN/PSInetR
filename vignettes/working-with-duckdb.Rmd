@@ -24,7 +24,17 @@ library(duckdb)
 
 ## Introduction
 
-This vignette demonstrates how to work with plant water potential data stored in DuckDB format. DuckDB is a high-performance analytical database system that works well with R and provides efficient querying capabilities.
+This vignette demonstrates how to work with plant water potential data stored in DuckDB format. DuckDB is a high-performance analytical database system that works well with R and provides efficient querying capabilities for plant water potential (Ψ) datasets.
+
+### Why DuckDB?
+
+DuckDB offers several advantages for working with plant water potential data:
+
+1. **Performance**: DuckDB provides fast analytical queries, even on larger datasets
+2. **Ease of use**: No separate server installation required
+3. **SQL and dplyr compatibility**: Familiar query syntax options
+4. **Zero configuration**: Works immediately with R
+5. **Column-oriented storage**: Optimized for analytical workloads common in ecological research
 
 ## Connecting to the Database
 
@@ -42,28 +52,54 @@ tables <- dbListTables(con)
 print(tables)
 ```
 
+## Understanding the Database Structure
+
+The PSInet database contains several tables organized in a hierarchical structure. Let's first explore what tables are available:
+
+```{r explore_tables}
+# List all tables in the database
+dbListTables(con)
+
+# Look at the database schema
+db_schema <- DBI::dbGetQuery(con, "
+  SELECT 
+    table_name, 
+    column_name, 
+    data_type
+  FROM information_schema.columns 
+  WHERE table_schema = 'main'
+  ORDER BY table_name, ordinal_position
+")
+
+# View the schema of a specific table
+press_chamb_fields <- dbListFields(con, "press_chamb_wp")
+print(press_chamb_fields)
+```
+
 ## Basic Querying
 
-Now that we're connected, let's explore the data with some basic queries:
+Now that we understand the database structure, let's explore the data with some basic queries:
 
 ```{r basic_queries}
-# View the structure of a table
-dbListFields(con, "measurements")
+# Get a list of all study sites
+study_sites <- dbGetQuery(con, "SELECT dataset_name, latitude_wgs84, longitude_wgs84 FROM study_site LIMIT 10")
+print(study_sites)
 
-# Get a preview of the data
-measurements <- dbGetQuery(con, "SELECT * FROM measurements LIMIT 10")
-print(measurements)
+# Get plant species information
+plant_species <- dbGetQuery(con, "SELECT DISTINCT genus, specific_epithet FROM plants LIMIT 10")
+print(plant_species)
 
-# Get summary statistics
-summary_stats <- dbGetQuery(con, "
+# Get statistics on water potential measurements
+wp_stats <- dbGetQuery(con, "
   SELECT 
     COUNT(*) as count,
-    AVG(water_potential) as avg_potential,
-    MIN(water_potential) as min_potential,
-    MAX(water_potential) as max_potential
-  FROM measurements
+    AVG(water_potential_mean) as avg_potential,
+    MIN(water_potential_mean) as min_potential,
+    MAX(water_potential_mean) as max_potential
+  FROM press_chamb_wp
+  WHERE water_potential_mean IS NOT NULL
 ")
-print(summary_stats)
+print(wp_stats)
 ```
 
 ## Using dplyr with DuckDB
@@ -71,60 +107,266 @@ print(summary_stats)
 You can also use dplyr syntax to work with the database, which often makes complex queries more readable:
 
 ```{r dplyr_queries}
-# Create a reference to the table
-measurements_tbl <- tbl(con, "measurements")
-species_tbl <- tbl(con, "species")
+# Create references to the tables
+press_chamb_wp_tbl <- tbl(con, "press_chamb_wp")
+plants_tbl <- tbl(con, "plants")
+plots_tbl <- tbl(con, "plots")
 
-# Query using dplyr syntax
-results <- measurements_tbl %>%
-  left_join(species_tbl, by = "species_id") %>%
-  group_by(scientific_name) %>%
+# Query using dplyr syntax for water potential by species
+wp_by_species <- press_chamb_wp_tbl %>%
+  inner_join(plants_tbl, by = c("dataset_name", "individual_id")) %>%
+  group_by(genus, specific_epithet) %>%
   summarize(
     count = n(),
-    avg_potential = mean(water_potential, na.rm = TRUE),
-    min_potential = min(water_potential, na.rm = TRUE),
-    max_potential = max(water_potential, na.rm = TRUE)
+    avg_potential = mean(water_potential_mean, na.rm = TRUE),
+    min_potential = min(water_potential_mean, na.rm = TRUE),
+    max_potential = max(water_potential_mean, na.rm = TRUE)
   ) %>%
   arrange(desc(count)) %>%
   collect()  # This executes the query and brings results into R
 
-print(results)
+print(wp_by_species)
+
+# Find measurements by organ type
+organ_summary <- press_chamb_wp_tbl %>%
+  group_by(organ, canopy_position) %>%
+  summarize(
+    count = n(),
+    avg_potential = mean(water_potential_mean, na.rm = TRUE),
+    avg_n_samples = mean(water_potential_n, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  arrange(desc(count)) %>%
+  collect()
+
+print(organ_summary)
 ```
 
 ## Advanced Analyses
 
-Here are some examples of more advanced analyses:
+Here are some examples of more advanced analyses that combine multiple data tables:
 
 ```{r advanced_analyses}
-# Seasonal patterns in water potential
-seasonal_patterns <- measurements_tbl %>%
-  mutate(month = extract(date, '%m')) %>%
+# Analyze seasonal patterns in water potential
+seasonal_patterns <- press_chamb_wp_tbl %>%
+  # Extract month from date (YYYYMMDD format)
+  mutate(month = substr(date, 5, 6)) %>%
   group_by(month) %>%
   summarize(
-    avg_potential = mean(water_potential, na.rm = TRUE),
+    avg_potential = mean(water_potential_mean, na.rm = TRUE),
+    sd_potential = sd(water_potential_mean, na.rm = TRUE),
     sample_count = n()
   ) %>%
   collect()
 
-# Comparing water potential across different habitats
-habitat_comparison <- measurements_tbl %>%
-  left_join(tbl(con, "sites"), by = "site_id") %>%
-  group_by(habitat_type) %>%
+print(seasonal_patterns)
+
+# Comparing water potential with soil moisture
+soil_wp_comparison <- press_chamb_wp_tbl %>%
+  # Join with soil moisture data on dataset_name, plot_id, and date
+  inner_join(
+    tbl(con, "soil_moisture"),
+    by = c("dataset_name", "plot_id", "date")
+  ) %>%
+  # Group by soil moisture categories (using a window function)
+  mutate(
+    swc_shallow_category = case_when(
+      swc_mean_shallow < 0.1 ~ "very low",
+      swc_mean_shallow < 0.2 ~ "low",
+      swc_mean_shallow < 0.3 ~ "medium",
+      TRUE ~ "high"
+    )
+  ) %>%
+  group_by(swc_shallow_category) %>%
   summarize(
-    avg_potential = mean(water_potential, na.rm = TRUE),
-    sample_count = n()
+    avg_water_potential = mean(water_potential_mean, na.rm = TRUE),
+    sd_water_potential = sd(water_potential_mean, na.rm = TRUE),
+    n_observations = n()
   ) %>%
   collect()
+
+print(soil_wp_comparison)
+
+# Analyzing the relationship between environmental variables and water potential
+env_wp_comparison <- press_chamb_wp_tbl %>%
+  # Join with environmental data on dataset_name and date
+  inner_join(
+    tbl(con, "env_vars"),
+    by = c("dataset_name", "date")
+  ) %>%
+  # Select relevant columns
+  select(
+    dataset_name, date, water_potential_mean, water_potential_sd,
+    vapor_pressure_deficit_k_pa, air_temperature_c, precipitation_mm
+  ) %>%
+  # Calculate correlations
+  summarize(
+    vpd_correlation = cor(water_potential_mean, vapor_pressure_deficit_k_pa, 
+                           use = "complete.obs"),
+    temp_correlation = cor(water_potential_mean, air_temperature_c, 
+                            use = "complete.obs"),
+    precip_correlation = cor(water_potential_mean, precipitation_mm, 
+                              use = "complete.obs"),
+    n_observations = n()
+  ) %>%
+  collect()
+
+print(env_wp_comparison)
 ```
 
-## Disconnecting
+## Visualization Examples
 
-Always remember to disconnect when you're done:
+Let's create some visualizations with the data we've retrieved:
 
-```{r disconnect}
-dbDisconnect(con)
+```{r visualizations, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(lubridate)
+
+# Connect to database (new connection for this section)
+con <- dbConnect(duckdb::duckdb(), get_data_dir())
+
+# Get water potential data for visualization
+wp_time_data <- tbl(con, "press_chamb_wp") %>%
+  filter(!is.na(water_potential_mean)) %>%
+  collect() %>%
+  mutate(date_parsed = ymd(as.character(date)))  # Convert YYYYMMDD to Date
+
+# Plot water potential over time
+ggplot(wp_time_data, aes(x = date_parsed, y = water_potential_mean)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = TRUE) +
+  labs(
+    title = "Plant Water Potential Over Time",
+    x = "Date",
+    y = "Water Potential (MPa)"
+  ) +
+  theme_minimal()
+
+# Get water potential by species
+wp_species <- tbl(con, "press_chamb_wp") %>%
+  inner_join(tbl(con, "plants"), by = c("dataset_name", "individual_id", "plot_id")) %>%
+  group_by(genus, specific_epithet) %>%
+  summarize(
+    mean_wp = mean(water_potential_mean, na.rm = TRUE),
+    sd_wp = sd(water_potential_mean, na.rm = TRUE),
+    count = n()
+  ) %>%
+  filter(count > 5) %>%  # Only species with enough measurements
+  collect()
+
+# Create species name
+wp_species$species <- paste(wp_species$genus, wp_species$specific_epithet)
+
+# Plot water potential by species
+ggplot(wp_species, aes(x = reorder(species, mean_wp), y = mean_wp)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = mean_wp - sd_wp, ymax = mean_wp + sd_wp), width = 0.2) +
+  labs(
+    title = "Average Water Potential by Species",
+    x = "Species",
+    y = "Water Potential (MPa)"
+  ) +
+  coord_flip() +  # Flip coordinates for better readability
+  theme_minimal()
+
+# Don't forget to disconnect
+dbDisconnect(con, shutdown = TRUE)
+```
+
+## Working with Both Automated and Manual Measurements
+
+The PSInet database contains both manual pressure chamber measurements and automated continuous measurements. Here's how to work with both:
+
+```{r combined_measurements}
+# Connect to database
+con <- dbConnect(duckdb::duckdb(), get_data_dir())
+
+# Query to combine manual and automated measurements
+combined_query <- "
+SELECT
+  'manual' as measurement_type,
+  pc.dataset_name,
+  pc.individual_id,
+  pc.date,
+  pc.time,
+  pc.water_potential_mean,
+  pc.water_potential_sd,
+  p.genus,
+  p.specific_epithet
+FROM press_chamb_wp pc
+JOIN plants p ON pc.dataset_name = p.dataset_name AND pc.individual_id = p.individual_id
+WHERE pc.water_potential_mean IS NOT NULL
+
+UNION ALL
+
+SELECT
+  'automated' as measurement_type,
+  a.dataset_name,
+  a.individual_id,
+  a.date,
+  a.time,
+  a.water_potential_mean,
+  a.water_potential_sd,
+  p.genus,
+  p.specific_epithet
+FROM auto_wp a
+JOIN plants p ON a.dataset_name = p.dataset_name AND a.individual_id = p.individual_id
+WHERE a.water_potential_mean IS NOT NULL
+LIMIT 1000  -- Limit to avoid memory issues
+"
+
+combined_data <- dbGetQuery(con, combined_query)
+
+# Compare manual vs automated measurements
+measurement_summary <- combined_data %>%
+  group_by(measurement_type) %>%
+  summarize(
+    count = n(),
+    avg_potential = mean(water_potential_mean, na.rm = TRUE),
+    sd_potential = sd(water_potential_mean, na.rm = TRUE),
+    min_potential = min(water_potential_mean, na.rm = TRUE),
+    max_potential = max(water_potential_mean, na.rm = TRUE)
+  )
+
+print(measurement_summary)
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+```
+
+## Performance Tips
+
+When working with larger PSInet datasets:
+
+1. **Limit data retrieval**: Use `filter()` before `collect()` to reduce data transferred
+2. **Use lazy evaluation**: Keep operations in the database as long as possible
+3. **Index columns**: If you modify the database, consider adding indices for frequently filtered columns
+4. **Close connections**: Always disconnect when done to free resources
+5. **Avoid large JOINs in R**: Perform joins in DuckDB with `inner_join()` before collecting
+
+```{r performance_example}
+# Example of good practice
+con <- dbConnect(duckdb::duckdb(), get_data_dir())
+
+# Efficient query - filtering happens in database
+efficient_query <- tbl(con, "press_chamb_wp") %>%
+  filter(water_potential_mean < -1.0) %>%
+  select(dataset_name, individual_id, date, water_potential_mean) %>%
+  collect()
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
 ```
 
 ## Conclusion
 
-This vignette demonstrated how to work with plant water potential data stored in DuckDB format. DuckDB provides efficient querying capabilities that work well with both SQL and dplyr syntax, making it a powerful tool for analyzing large datasets.
+This vignette demonstrated how to work with the PSInet database in DuckDB format. You've learned how to:
+
+1. Connect to the DuckDB database
+2. Explore the database structure
+3. Perform basic and advanced queries using SQL and dplyr
+4. Join related tables to analyze relationships
+5. Visualize water potential data
+6. Compare automated and manual measurements
+
+DuckDB provides efficient querying capabilities that work well with both SQL and dplyr syntax, making it a powerful tool for analyzing plant water potential data. As the PSInet database grows, these techniques will help you leverage this valuable resource for ecological research and drought studies.
