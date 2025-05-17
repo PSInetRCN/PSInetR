@@ -20,7 +20,9 @@ library(PSINetR)
 
 ## Introduction
 
-PSINetR provides functions to access and work with plant water potential data. This vignette demonstrates how to download, access, and analyze this data.
+PSINetR provides functions to access and work with plant water potential (Ψ) data from the PSInet Research Coordination Network. This vignette demonstrates how to download, access, and analyze this data.
+
+PSInet is a network focused on collecting and aggregating plant water potential measurements to improve understanding of ecosystem responses to drought and heat stress. Water potential can be thought of as the "blood pressure of the natural world" that directly controls plant functioning during drought. The PSInetR package gives you access to this valuable dataset.
 
 ## Downloading the Data
 
@@ -52,22 +54,225 @@ check_psi_data(format = "csv")
 check_psi_data(validate = TRUE)
 ```
 
+## PSInet Database Structure
+
+The PSInet database follows a hierarchical structure that organizes water potential data and relevant contextual information:
+
+### Core Tables
+
+1. **study_site**: Contains information about research locations where plant-soil interaction studies are conducted, including geographic coordinates, study period, and investigator details.
+
+2. **data_description**: Provides descriptions of the available data types and measurements for each study site.
+
+3. **treatments**: Documents experimental treatments applied at study sites.
+
+4. **plots**: Contains information about experimental plots, including vegetation type, soil properties, and terrain details.
+
+5. **plants**: Stores data about individual plants or groups of plants, including species information, size measurements, and plant social status.
+
+### Measurement Tables
+
+1. **press_chamb_wp**: Manual pressure chamber water potential measurements.
+
+2. **auto_wp**: Automated water potential sensor measurements.
+
+3. **soil_moisture**: Soil water content and soil water potential measurements.
+
+4. **env_vars**: Environmental variables like precipitation, temperature, humidity, and radiation.
+
+### Key Database Relationships
+
+```
+study_site → plots → plants → water potential measurements
+     |         |        |
+     |         |        → automated water potential measurements
+     |         |
+     |         → soil moisture measurements
+     |
+     → environmental variables
+```
+
 ## Working with the Data
 
 After downloading the data, you can start working with it. The following examples demonstrate basic data analysis workflows.
 
 ### Example 1: Basic Data Exploration
 
-[Example code for data exploration will be added here]
+```{r basic-exploration, eval=FALSE}
+library(DBI)
+library(duckdb)
+library(dplyr)
 
-### Example 2: Visualizing Plant Water Potential Data
+# Connect to the DuckDB database
+data_dir <- get_data_dir()  # Get default data directory
+db_path <- file.path(data_dir, "psi_data.duckdb")
+con <- dbConnect(duckdb::duckdb(), db_path)
 
-[Example code for data visualization will be added here]
+# List available tables
+dbListTables(con)
 
-### Example 3: Advanced Analysis
+# Preview the study sites
+study_sites <- tbl(con, "study_site") %>%
+  collect()
+head(study_sites)
 
-[Example code for advanced analysis will be added here]
+# Count plants by species
+species_counts <- tbl(con, "plants") %>%
+  group_by(genus, specific_epithet) %>%
+  summarize(plant_count = n()) %>%
+  arrange(desc(plant_count)) %>%
+  collect()
+head(species_counts)
+
+# Don't forget to disconnect
+dbDisconnect(con, shutdown = TRUE)
+```
+
+### Example 2: Exploring Water Potential Data
+
+```{r water-potential, eval=FALSE}
+library(DBI)
+library(duckdb)
+library(dplyr)
+library(ggplot2)
+
+# Connect to the database
+data_dir <- get_data_dir()
+db_path <- file.path(data_dir, "psi_data.duckdb")
+con <- dbConnect(duckdb::duckdb(), db_path)
+
+# Get water potential data for a specific plant
+wp_data <- tbl(con, "press_chamb_wp") %>%
+  filter(individual_id == "PINE_01") %>%
+  collect()
+
+# Plot water potential over time
+wp_data %>%
+  mutate(date = as.Date(as.character(date), format = "%Y%m%d")) %>%
+  ggplot(aes(x = date, y = water_potential_mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = water_potential_mean - water_potential_sd,
+                    ymax = water_potential_mean + water_potential_sd)) +
+  labs(title = "Plant Water Potential Over Time",
+       x = "Date",
+       y = "Water Potential (MPa)") +
+  theme_minimal()
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+```
+
+### Example 3: Combining Environmental and Water Potential Data
+
+```{r combined-analysis, eval=FALSE}
+library(DBI)
+library(duckdb)
+library(dplyr)
+library(ggplot2)
+
+# Connect to the database
+data_dir <- get_data_dir()
+db_path <- file.path(data_dir, "psi_data.duckdb")
+con <- dbConnect(duckdb::duckdb(), db_path)
+
+# Get plants, water potential, and environmental data for a study site
+study <- "Example_Site_1"
+
+# Get water potential data
+wp_data <- tbl(con, "press_chamb_wp") %>%
+  filter(dataset_name == study) %>%
+  collect()
+
+# Get environmental data
+env_data <- tbl(con, "env_vars") %>%
+  filter(dataset_name == study) %>%
+  collect()
+
+# Join water potential and VPD data by date
+combined_data <- wp_data %>%
+  inner_join(env_data, by = c("dataset_name", "date")) %>%
+  select(date, water_potential_mean, vapor_pressure_deficit_k_pa, 
+         air_temperature_c, precipitation_mm)
+
+# Plot water potential vs. VPD
+combined_data %>%
+  ggplot(aes(x = vapor_pressure_deficit_k_pa, y = water_potential_mean)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Plant Water Potential vs. Vapor Pressure Deficit",
+       x = "VPD (kPa)",
+       y = "Water Potential (MPa)") +
+  theme_minimal()
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+```
+
+## Adding the Database to Your Analysis Pipeline
+
+The PSInet database can be integrated with other R packages for advanced analysis:
+
+```{r integration, eval=FALSE}
+# Example: Use tidyverse for data wrangling and visualization
+library(dplyr)
+library(ggplot2)
+library(DBI)
+library(duckdb)
+
+# Connect to the database
+con <- dbConnect(duckdb::duckdb(), get_data_dir())
+
+# Get predawn and midday water potential measurements
+wp_data <- tbl(con, "press_chamb_wp") %>%
+  filter(
+    organ == "stem" | organ == "leaf",
+    !is.na(water_potential_mean)
+  ) %>%
+  left_join(
+    tbl(con, "plants"),
+    by = c("dataset_name", "individual_id")
+  ) %>%
+  collect()
+
+# Create time of day category
+wp_data <- wp_data %>%
+  mutate(
+    time_of_day = case_when(
+      grepl("dawn|predawn|pre-dawn|early", time, ignore.case = TRUE) ~ "Predawn",
+      grepl("mid|noon|after", time, ignore.case = TRUE) ~ "Midday",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(time_of_day %in% c("Predawn", "Midday"))
+
+# Visualize water potential patterns by time of day and species
+wp_data %>%
+  ggplot(aes(x = genus, y = water_potential_mean, fill = time_of_day)) +
+  geom_boxplot() +
+  labs(
+    title = "Water Potential by Species and Time of Day",
+    x = "Genus",
+    y = "Water Potential (MPa)",
+    fill = "Time of Day"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+```
+
+## Future Directions
+
+As the PSInet database grows, researchers can:
+
+1. **Compare Drought Responses**: Evaluate how different species respond to water stress
+2. **Assess Climate Change Impacts**: Analyze how water potential patterns change with climate variables
+3. **Build Hydraulic Models**: Use water potential data as inputs for plant hydraulic models
+4. **Improve Drought Forecasting**: Develop better predictive models of ecosystem responses to drought
 
 ## Conclusion
 
-This vignette provided a basic introduction to the PSINetR package. For more detailed information on specific topics, refer to the other vignettes and the function documentation.
+This vignette provided a basic introduction to the PSINetR package and the PSInet database structure. The package makes it easy to access and analyze plant water potential data for ecological research, drought studies, and plant physiology investigations.
+
+For more detailed information on working specifically with the DuckDB database format, refer to the "working-with-duckdb" vignette.

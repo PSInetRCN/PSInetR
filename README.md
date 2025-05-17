@@ -2,12 +2,28 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/PSInetRCN//PSINetR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/PSInetRCN//PSINetR/actions/workflows/R-CMD-check.yaml)
-[![Codecov test coverage](https://codecov.io/gh/PSInetRCN/PSINetR/branch/main/graph/badge.svg)](https://app.codecov.io/gh/PSInetRCN/PSINetR?branch=main)
 <!-- badges: end -->
 
 ## Overview
 
-PSINetR provides easy access to plant water potential data from a collaborative network of researchers. The package allows users to download, validate, and work with plant water potential measurements across various species, ecosystems, and time periods.
+PSINetR provides easy access to plant water potential (Ψ) data from the PSInet Research Coordination Network. The package allows users to download, validate, and work with plant water potential measurements across various species, ecosystems, and time periods.
+
+### About PSInet
+
+PSInet is a network focused on collecting and aggregating plant water potential (Ψ) data to improve understanding of ecosystem responses to drought and heat stress. Water potential can be thought of as the "blood pressure of the natural world" that directly controls plant functioning during drought.
+
+The network aims to:
+- Create a global, open database of plant and soil water potential time series
+- Promote consistent data collection through shared protocols
+- Support synthetic research on plant drought responses
+- Enhance understanding of ecosystem water dynamics
+
+PSInet fills a critical missing link between information about environmental drivers and physiological responses by providing a centralized, comprehensive water potential database.
+
+### Lead Investigators
+- Kim Novick (Indiana University)
+- Jessica Guo (University of Arizona)
+- Dan Johnson (University of Georgia)
 
 ## Features
 
@@ -16,6 +32,19 @@ PSINetR provides easy access to plant water potential data from a collaborative 
 - Authenticate with GitHub to access private data repositories
 - Check and validate local data files
 - Tools for analyzing and visualizing plant water potential data
+
+### Data Characteristics
+
+The PSInet database includes:
+
+- Time series of plant and soil water potential measurements
+- Data harmonized with other environmental observation networks
+- Measurements across diverse ecosystems and plant species
+- Information relevant for studying:
+  - Plant responses to drought stress
+  - Ecosystem water flows
+  - Vegetation functioning under climate change
+  - Connections between environmental drivers and physiological responses
 
 ## Installation
 
@@ -64,6 +93,22 @@ For more detailed information, check out the vignettes:
 - `vignette("getting-started", package = "PSINetR")`
 - `vignette("working-with-duckdb", package = "PSINetR")`
 
+## Development
+
+### Test Coverage
+
+To generate a local test coverage report:
+
+```r
+# Install the covr package if not already installed
+if (!requireNamespace("covr", quietly = TRUE)) install.packages("covr")
+
+# Generate a test coverage report
+PSINetR:::generate_coverage_report()
+```
+
+This will create an HTML report in the `coverage` directory and display a summary in the console.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -71,3 +116,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+PSINetR is part of the PSInet Research Coordination Network initiative, which aims to build a global database of plant water potential measurements. For more information, visit [the PSInet website](https://psinetrcn.github.io/).
+
+The PSInet initiative brings together researchers from multiple institutions to address fundamental questions about plant water use, drought responses, and ecosystem functioning under changing climate conditions.
