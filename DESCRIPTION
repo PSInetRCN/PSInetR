@@ -2,7 +2,7 @@ Package: PSINetR
 Type: Package
 Title: Access Plant Water Potential Data
 Version: 0.1.0
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
+Authors@R: person("Keaton", "Wilson", email = "keatonwilson@me.com", role = c("aut", "cre"))
 Description: Provides functions to access and work with plant water potential data
     from various sources. Allows downloading data from repositories or Zenodo, and
     includes utilities for data validation and manipulation.
