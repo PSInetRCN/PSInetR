@@ -1,8 +1,8 @@
 # PSINetR
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/username/PSINetR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/username/PSINetR/actions/workflows/R-CMD-check.yaml)
-[![Codecov test coverage](https://codecov.io/gh/username/PSINetR/branch/main/graph/badge.svg)](https://app.codecov.io/gh/username/PSINetR?branch=main)
+[![R-CMD-check](https://github.com/PSInetRCN//PSINetR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/PSInetRCN//PSINetR/actions/workflows/R-CMD-check.yaml)
+[![Codecov test coverage](https://codecov.io/gh/PSInetRCN//PSINetR/branch/main/graph/badge.svg)](https://app.codecov.io/gh/PSInetRCN//PSINetR?branch=main)
 <!-- badges: end -->
 
 ## Overview
