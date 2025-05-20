@@ -24,7 +24,7 @@ get_latest_release_tag <- function(repo_url, github_token = NULL) {
   # Extract owner/repo from URL if needed
   if (grepl("^https://github.com/", repo_url)) {
     repo_path <- sub("^https://github.com/", "", repo_url)
-    repo_path <- sub("\.git$", "", repo_path)
+    repo_path <- sub("\\.git$", "", repo_path)
   } else {
     repo_path <- repo_url
   }
@@ -95,7 +95,7 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
   # Extract owner/repo from URL if needed
   if (grepl("^https://github.com/", repo_url)) {
     repo_path <- sub("^https://github.com/", "", repo_url)
-    repo_path <- sub("\.git$", "", repo_path)
+    repo_path <- sub("\\.git$", "", repo_path)
   } else {
     repo_path <- repo_url
   }
