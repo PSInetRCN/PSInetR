@@ -10,7 +10,10 @@ download_from_repo(
   overwrite,
   repo_url,
   github_token,
-  release_tag = NULL
+  release_tag = NULL,
+  direct_url = NULL,
+  file_name = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -26,6 +29,14 @@ download_from_repo(
 
 \item{release_tag}{Character string specifying a specific release tag to use (e.g., "v0.1.0").
 If NULL (default), the latest release will be used.}
+
+\item{direct_url}{Character string specifying a direct URL to the file to download. If provided, this overrides
+the repository and release tag settings and downloads directly from the specified URL.}
+
+\item{file_name}{Character string specifying the file name to download from the release. By default, this is
+"psinet.duckdb" for DuckDB format and "psinet_csv.zip" for CSV format.}
+
+\item{verbose}{Logical indicating whether to print progress information. Default is TRUE.}
 }
 \value{
 Character string with the path to the downloaded data.

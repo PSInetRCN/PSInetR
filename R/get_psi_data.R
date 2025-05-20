@@ -112,7 +112,7 @@ get_psi_data <- function(source = c("repo", "zenodo"),
       if (!is.null(direct_url)) {
         cli::cli_alert_info("Using direct URL: {.url {direct_url}}")
       } else {
-        cli::cli_alert_info("Repository: {.val {if(is.null(repo_url)) "PSInetRCN/PSInetDB" else repo_url}}")
+        cli::cli_alert_info("Repository: {.val {if(is.null(repo_url)) 'PSInetRCN/PSInetDB' else repo_url}}")
         cli::cli_alert_info("Format: {.val {format}}")
         if (!is.null(release_tag)) {
           cli::cli_alert_info("Using release tag: {.val {release_tag}}")

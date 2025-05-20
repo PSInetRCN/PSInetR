@@ -12,7 +12,10 @@ get_psi_data(
   repo_url = NULL,
   zenodo_doi = NULL,
   github_token = NULL,
-  release_tag = NULL
+  release_tag = NULL,
+  direct_url = NULL,
+  file_name = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -33,10 +36,21 @@ If NULL (default), a pre-configured DOI will be used.}
 
 \item{github_token}{Character string containing a GitHub Personal Access Token (PAT) for accessing private repositories.
 If NULL (default), the function will look for a token in the GITHUB_PAT or GITHUB_TOKEN environment variable.
-Set this with \code{Sys.setenv(GITHUB_PAT = "your_token_here")} or in your .Renviron file.}
+Set this with \code{Sys.setenv(GITHUB_PAT = "your_token_here")} or in your .Renviron file.
+For private repositories, make sure your token has the 'repo' scope.}
 
 \item{release_tag}{Character string specifying a specific GitHub release tag to use (e.g., "v0.1.0").
-If NULL (default), the latest release will be used. Only used when source = "repo".}
+If NULL (default), the latest release will be used. Only used when source = "repo".
+If the latest release cannot be retrieved (due to permissions or no releases), the function will fail
+and you'll need to provide a specific release_tag.}
+
+\item{direct_url}{Character string specifying a direct URL to the file to download. If provided, this overrides
+the repository and release tag settings and downloads directly from the specified URL.}
+
+\item{file_name}{Character string specifying the file name to download from the release. By default, this is
+"psinet.duckdb" for DuckDB format and "psinet_csv.zip" for CSV format.}
+
+\item{verbose}{Logical indicating whether to print extra progress information. Default is TRUE.}
 }
 \value{
 Invisibly returns the path to the downloaded data.
@@ -67,6 +81,18 @@ get_psi_data(release_tag = "v0.1.0")
 
 # Access data from a private GitHub repository using a token
 get_psi_data(github_token = "your_github_token")
+
+# Download directly from a specific URL
+get_psi_data(direct_url = "https://example.com/path/to/psinet.duckdb")
+
+# Specify a different file name from the release
+get_psi_data(release_tag = "v0.1.0", file_name = "psi_data.duckdb")
+
+# Example for PSInetRCN/PSInetDB with specific file and tag
+get_psi_data(repo_url = "PSInetRCN/PSInetDB", release_tag = "v0.1.0", file_name = "psinet.duckdb")
+
+# Turn off verbose output for silent operation
+get_psi_data(verbose = FALSE)
 
 # Alternative: set token in environment and use it
 Sys.setenv(GITHUB_PAT = "your_github_token")

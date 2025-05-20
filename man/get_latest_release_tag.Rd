@@ -4,13 +4,15 @@
 \alias{get_latest_release_tag}
 \title{Get Latest GitHub Release Tag}
 \usage{
-get_latest_release_tag(repo_url, github_token = NULL)
+get_latest_release_tag(repo_url, github_token = NULL, verbose = TRUE)
 }
 \arguments{
 \item{repo_url}{Character string specifying the repository URL or name (e.g., "PSInetRCN/PSInetDB").}
 
 \item{github_token}{Character string containing a GitHub Personal Access Token (PAT).
 Can be NULL if the repository is public.}
+
+\item{verbose}{Logical indicating whether to print progress information.}
 }
 \value{
 Character string with the latest release tag (e.g., "v0.1.0").
