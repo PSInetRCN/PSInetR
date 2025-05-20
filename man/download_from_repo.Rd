@@ -4,7 +4,14 @@
 \alias{download_from_repo}
 \title{Download Data from Repository}
 \usage{
-download_from_repo(format, dest_dir, overwrite, repo_url, github_token)
+download_from_repo(
+  format,
+  dest_dir,
+  overwrite,
+  repo_url,
+  github_token,
+  release_tag = NULL
+)
 }
 \arguments{
 \item{format}{Character string specifying the data format to download, either "duckdb" or "csv".}
@@ -13,14 +20,18 @@ download_from_repo(format, dest_dir, overwrite, repo_url, github_token)
 
 \item{overwrite}{Logical indicating whether to overwrite existing files.}
 
-\item{repo_url}{Character string specifying the repository URL.}
+\item{repo_url}{Character string specifying the repository URL or name (e.g., "PSInetRCN/PSInetDB").}
 
 \item{github_token}{Character string containing a GitHub Personal Access Token (PAT).}
+
+\item{release_tag}{Character string specifying a specific release tag to use (e.g., "v0.1.0").
+If NULL (default), the latest release will be used.}
 }
 \value{
 Character string with the path to the downloaded data.
 }
 \description{
-Downloads plant water potential data from a repository.
+Downloads plant water potential data from a repository's GitHub releases.
+By default, it will fetch the data from the latest release.
 }
 \keyword{internal}

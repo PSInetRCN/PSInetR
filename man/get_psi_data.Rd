@@ -11,7 +11,8 @@ get_psi_data(
   overwrite = FALSE,
   repo_url = NULL,
   zenodo_doi = NULL,
-  github_token = NULL
+  github_token = NULL,
+  release_tag = NULL
 )
 }
 \arguments{
@@ -24,7 +25,7 @@ If NULL (default), files will be downloaded to a default location determined by 
 
 \item{overwrite}{Logical indicating whether to overwrite existing files. Default is FALSE.}
 
-\item{repo_url}{Character string specifying the repository URL. Only used when source = "repo".
+\item{repo_url}{Character string specifying the repository URL or name (e.g., "PSInetRCN/PSInetDB"). Only used when source = "repo".
 If NULL (default), a pre-configured URL will be used.}
 
 \item{zenodo_doi}{Character string specifying the Zenodo DOI. Only used when source = "zenodo".
@@ -33,19 +34,26 @@ If NULL (default), a pre-configured DOI will be used.}
 \item{github_token}{Character string containing a GitHub Personal Access Token (PAT) for accessing private repositories.
 If NULL (default), the function will look for a token in the GITHUB_PAT or GITHUB_TOKEN environment variable.
 Set this with \code{Sys.setenv(GITHUB_PAT = "your_token_here")} or in your .Renviron file.}
+
+\item{release_tag}{Character string specifying a specific GitHub release tag to use (e.g., "v0.1.0").
+If NULL (default), the latest release will be used. Only used when source = "repo".}
 }
 \value{
 Invisibly returns the path to the downloaded data.
 }
 \description{
 This function downloads plant water potential data from a specified source.
-Users can choose between fetching data from a repository URL or from Zenodo.
+Users can choose between fetching data from a GitHub repository release or from Zenodo.
 Downloaded data can be saved as either a DuckDB file or CSV files.
 For accessing data in a private GitHub repository, authentication is required.
 }
+\details{
+When downloading from a GitHub repository, the function will automatically fetch
+the data from the latest release unless a specific release tag is provided.
+}
 \examples{
 \dontrun{
-# Download data from repository, as DuckDB
+# Download data from repository, as DuckDB (automatically uses latest release)
 get_psi_data()
 
 # Download data from Zenodo, as CSV files
@@ -53,6 +61,9 @@ get_psi_data(source = "zenodo", format = "csv")
 
 # Specify a custom destination directory
 get_psi_data(dest_dir = "~/my_data")
+
+# Download a specific release version
+get_psi_data(release_tag = "v0.1.0")
 
 # Access data from a private GitHub repository using a token
 get_psi_data(github_token = "your_github_token")
