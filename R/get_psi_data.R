@@ -87,7 +87,7 @@ get_psi_data <- function(source = c("repo", "zenodo"),
   }
 
   # Create destination directory if it doesn't exist
-  if (!dir.exists(dest_dir)) {data
+  if (!dir.exists(dest_dir)) {
     dir.create(dest_dir, recursive = TRUE)
     cli::cli_alert_success("Created data directory: {.file {dest_dir}}")
   }

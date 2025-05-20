@@ -22,3 +22,4 @@ test_download()
 test_download(debug = TRUE)
 }
 }
+\keyword{internal}
