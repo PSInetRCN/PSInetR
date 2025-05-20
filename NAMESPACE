@@ -3,3 +3,5 @@
 export(check_psi_data)
 export(get_psi_data)
 export(test_download)
+importFrom(utils,data)
+importFrom(utils,unzip)

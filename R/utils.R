@@ -111,6 +111,7 @@ get_latest_release_tag <- function(repo_url, github_token = NULL, verbose = TRUE
 #'   "psinet.duckdb" for DuckDB format and "psinet_csv.zip" for CSV format.
 #' @param verbose Logical indicating whether to print progress information. Default is TRUE.
 #'
+#' @importFrom utils unzip
 #' @return Character string with the path to the downloaded data.
 #' @keywords internal
 download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_token, release_tag = NULL, direct_url = NULL, file_name = NULL, verbose = TRUE) {

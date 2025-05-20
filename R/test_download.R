@@ -6,6 +6,7 @@
 #' @param debug Logical indicating whether to print debugging information
 #'
 #' @return Invisibly returns the path to the downloaded data
+#' @keywords internal
 #' @export
 #'
 #' @examples
@@ -39,7 +40,7 @@ test_download <- function(debug = TRUE) {
   # Get the latest release tag
   if (debug) message("\n=== Fetching Latest Release Tag ===")
   release_tag <- tryCatch({
-    tag <- get_latest_release_tag(repo_url, github_token, debug = debug)
+    tag <- get_latest_release_tag(repo_url, github_token, verbose = debug)
     if (debug) message("Latest release tag: ", tag)
     tag
   }, error = function(e) {

@@ -17,11 +17,10 @@ Suggests:
     rmarkdown
 Config/testthat/edition: 3
 Imports: 
-    dplyr,
     httr,
-    readr,
     DBI,
     duckdb,
     cli,
-    covr
+    covr,
+    utils
 VignetteBuilder: knitr
