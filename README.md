@@ -69,7 +69,7 @@ get_psi_data(source = "zenodo", format = "csv")
 # Check if data is available locally
 check_psi_data()
 
-# For private repositories, provide GitHub token
+# For private repository access (e.g. early access), provide GitHub token
 get_psi_data(github_token = "your_token")
 # Or set in .Renviron: GITHUB_PAT=your_token
 ```
