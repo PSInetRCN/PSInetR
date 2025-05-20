@@ -12,3 +12,5 @@
 ^renv\.lock$
 ^codecov\.yml$
 ^TODO\.md$
+^\.claude$
+^CLAUDE\.md$

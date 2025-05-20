@@ -14,8 +14,7 @@ RoxygenNote: 7.3.2
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
-    rmarkdown,
-    covr
+    rmarkdown
 Config/testthat/edition: 3
 Imports: 
     dplyr,
@@ -23,5 +22,6 @@ Imports:
     readr,
     DBI,
     duckdb,
-    cli
+    cli,
+    covr
 VignetteBuilder: knitr
