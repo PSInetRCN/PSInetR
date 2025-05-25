@@ -1,6 +1,6 @@
-test_that("get_data_dir formats path correctly", {
+test_that("get_data_dir returns current working directory", {
   data_dir <- get_data_dir()
-  expect_match(data_dir, "\\.PSINetR$")
+  expect_equal(data_dir, getwd())
 })
 
 # Test utils functions that handle repository URL formatting

@@ -1,12 +1,12 @@
 #' Get Default Data Directory
 #'
 #' Returns the default directory for storing downloaded data.
-#' This directory is located within the user's home directory in a folder called '.PSINetR'.
+#' This directory is the current working directory.
 #'
 #' @return Character string with the path to the default data directory.
 #' @keywords internal
 get_data_dir <- function() {
-  data_dir <- file.path(Sys.getenv("HOME"), ".PSINetR")
+  data_dir <- getwd()
   return(data_dir)
 }
 

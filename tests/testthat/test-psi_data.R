@@ -1,7 +1,8 @@
 test_that("get_data_dir returns a valid path", {
   data_dir <- get_data_dir()
   expect_type(data_dir, "character")
-  expect_true(grepl("\\.PSINetR$", data_dir))
+  expect_true(dir.exists(data_dir))
+  expect_equal(data_dir, getwd())
 })
 
 test_that("check_psi_data validates inputs", {
@@ -15,11 +16,12 @@ test_that("get_psi_data validates inputs", {
 })
 
 test_that("utils functions handle edge cases", {
-  # Test get_data_dir with different HOME values
-  orig_home <- Sys.getenv("HOME")
-  Sys.setenv(HOME = "/tmp")
-  expect_equal(get_data_dir(), "/tmp/.PSINetR")
-  Sys.setenv(HOME = orig_home)
+  # Test get_data_dir returns current working directory
+  orig_wd <- getwd()
+  temp_dir <- tempdir()
+  setwd(temp_dir)
+  expect_equal(normalizePath(get_data_dir()), normalizePath(temp_dir))
+  setwd(orig_wd)
 })
 
 test_that("coverage functions validate inputs", {
