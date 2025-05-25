@@ -4,3 +4,7 @@
 .Ruserdata
 
 .Renviron
+
+# PSINetR data files
+*.duckdb
+*.csv

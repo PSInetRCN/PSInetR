@@ -15,3 +15,5 @@
 ^\.claude$
 ^CLAUDE\.md$
 ^\.Renviron$
+^.*\.duckdb$
+^.*\.csv$
