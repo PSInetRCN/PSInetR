@@ -1,9 +1,9 @@
 # PSINetR Development To-Do List
 
 ## Package Metadata
-- [ ] Fill in actual author information in DESCRIPTION file
-- [ ] Update GitHub username references in README.md
-- [ ] Update GitHub username references in _pkgdown.yml
+- [x] Fill in actual author information in DESCRIPTION file
+- [x] Update GitHub username references in README.md
+- [x] Update GitHub username references in _pkgdown.yml
 
 ## Data Source Configuration
 - [ ] Add specific repository URL information in download_from_repo() function
@@ -29,8 +29,8 @@
 - [ ] Add data validation functions to check downloaded data integrity
 
 ## CI/CD
-- [ ] Add renv.lock with formal package dependency locking
-- [ ] Configure codecov integration
+- [x] Add renv.lock with formal package dependency locking
+- [x] Configure test coverage tracking (local implementation instead of codecov)
 - [ ] Consider implementing version-specific data access
 
 ## Community

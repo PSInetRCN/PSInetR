@@ -2,7 +2,7 @@ Package: PSINetR
 Type: Package
 Title: Access Plant Water Potential Data
 Version: 0.1.0
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
+Authors@R: person("Keaton", "Wilson", email = "keatonwilson@me.com", role = c("aut", "cre"))
 Description: Provides functions to access and work with plant water potential data
     from various sources. Allows downloading data from repositories or Zenodo, and
     includes utilities for data validation and manipulation.
@@ -10,17 +10,17 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
     rmarkdown
 Config/testthat/edition: 3
 Imports: 
-    dplyr,
     httr,
-    readr,
     DBI,
     duckdb,
-    cli
+    cli,
+    covr,
+    utils
 VignetteBuilder: knitr
