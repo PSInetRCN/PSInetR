@@ -225,33 +225,57 @@ library(DBI)
 library(duckdb)
 
 # Connect to the database
-con <- dbConnect(duckdb::duckdb(), get_data_dir())
+data_dir <- get_data_dir()
+db_path <- file.path(data_dir, "psinet.duckdb")
+con <- dbConnect(duckdb::duckdb(), db_path)
 
 # Get predawn and midday water potential measurements
-wp_data <- tbl(con, "press_chamb_wp") %>%
+wp_data <- tbl(con, "press_chamb_wb") |>
   filter(
     organ == "stem" | organ == "leaf",
     !is.na(water_potential_mean)
-  ) %>%
+  ) |>
   left_join(
     tbl(con, "plants"),
     by = c("dataset_name", "individual_id")
-  ) %>%
+  ) |>
   collect()
 
-# Create time of day category
-wp_data <- wp_data %>%
+# Create time of day category based on time values
+# The time column appears to contain seconds since midnight
+# Convert to hours for easier categorization
+wp_data_filtered <- wp_data |>
   mutate(
+    # Convert character time to numeric seconds, then to hours
+    time_numeric = as.numeric(time),
+    hour_decimal = time_numeric / 3600,  # Convert seconds to hours
+    hour = floor(hour_decimal),          # Extract integer hour
+    minute = round((hour_decimal - hour) * 60), # Extract minutes
+    
+    # Categorize based on typical measurement times
+    # NOTE: Adjust these ranges based on your specific measurement protocols
     time_of_day = case_when(
-      grepl("dawn|predawn|pre-dawn|early", time, ignore.case = TRUE) ~ "Predawn",
-      grepl("mid|noon|after", time, ignore.case = TRUE) ~ "Midday",
+      hour >= 4 & hour <= 7 ~ "Predawn",    # 4:00 AM to 7:59 AM
+      hour >= 11 & hour <= 14 ~ "Midday",   # 11:00 AM to 2:59 PM
       TRUE ~ "Other"
     )
-  ) %>%
+  ) |>
   filter(time_of_day %in% c("Predawn", "Midday"))
 
+# Alternative approach if you want to see what times are actually present:
+# wp_data |>
+#   mutate(
+#     time_numeric = as.numeric(time),
+#     hour_decimal = time_numeric / 3600,
+#     hour = floor(hour_decimal),
+#     minute = round((hour_decimal - hour) * 60),
+#     clock_time = sprintf("%02d:%02d", hour, minute)
+#   ) |>
+#   count(clock_time, sort = TRUE) |>
+#   head(20)  # This will show you the most common measurement times
+
 # Visualize water potential patterns by time of day and species
-wp_data %>%
+wp_data_filtered %>%
   ggplot(aes(x = genus, y = water_potential_mean, fill = time_of_day)) +
   geom_boxplot() +
   labs(
