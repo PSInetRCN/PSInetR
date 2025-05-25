@@ -7,6 +7,8 @@ Description: Provides functions to access and work with plant water potential da
     from various sources. Allows downloading data from repositories or Zenodo, and
     includes utilities for data validation and manipulation.
 License: MIT + file LICENSE
+URL: https://PSInetRCN.github.io/PSINetR/
+BugReports: https://github.com/PSInetRCN/PSINetR/issues
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
