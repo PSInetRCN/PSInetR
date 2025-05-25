@@ -34,7 +34,7 @@ check_psi_data <- function(format = c("duckdb", "csv"),
   
   # Construct file path based on format
   if (format == "duckdb") {
-    file_path <- file.path(dir, "psi_data.duckdb")
+    file_path <- file.path(dir, "psinet.duckdb")
     is_available <- file.exists(file_path)
     
     # Validate DuckDB file if requested
@@ -51,7 +51,7 @@ check_psi_data <- function(format = c("duckdb", "csv"),
     }
   } else {
     # For CSV format, check directory and files within it
-    csv_dir <- file.path(dir, "psi_data_csv")
+    csv_dir <- file.path(dir, "psinet_csv")
     is_available <- dir.exists(csv_dir)
     
     # Validate CSV files if requested
