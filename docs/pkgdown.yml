@@ -1,0 +1,10 @@
+pandoc: '0'
+pkgdown: 2.1.2
+pkgdown_sha: ~
+articles:
+  getting-started: getting-started.html
+  working-with-duckdb: working-with-duckdb.html
+last_built: 2025-05-25T23:46Z
+urls:
+  reference: https://PSInetRCN.github.io/PSINetR/reference
+  article: https://PSInetRCN.github.io/PSINetR/articles

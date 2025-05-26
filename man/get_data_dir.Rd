@@ -11,6 +11,6 @@ Character string with the path to the default data directory.
 }
 \description{
 Returns the default directory for storing downloaded data.
-This directory is located within the user's home directory in a folder called '.PSINetR'.
+This directory is the current working directory.
 }
 \keyword{internal}

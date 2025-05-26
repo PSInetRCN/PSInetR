@@ -51,7 +51,7 @@ check_psi_data()
 check_psi_data(format = "csv")
 
 # Check and validate the data
-check_psi_data(validate = TRUE)
+check_psi_data(validate = TRUE, dir = "/Users/keatonwilson/Documents/Projects/PSInetR/vignettes/")
 ```
 
 ## PSInet Database Structure
@@ -102,25 +102,25 @@ After downloading the data, you can start working with it. The following example
 library(DBI)
 library(duckdb)
 library(dplyr)
+library(dbplyr)
 
 # Connect to the DuckDB database
-data_dir <- get_data_dir()  # Get default data directory
-db_path <- file.path(data_dir, "psi_data.duckdb")
+db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
 # List available tables
 dbListTables(con)
 
 # Preview the study sites
-study_sites <- tbl(con, "study_site") %>%
+study_sites <- tbl(con, "study_site") |>
   collect()
 head(study_sites)
 
 # Count plants by species
-species_counts <- tbl(con, "plants") %>%
-  group_by(genus, specific_epithet) %>%
-  summarize(plant_count = n()) %>%
-  arrange(desc(plant_count)) %>%
+species_counts <- tbl(con, "plants") |>
+  group_by(genus, specific_epithet) |>
+  summarize(plant_count = n()) |>
+  arrange(desc(plant_count)) |>
   collect()
 head(species_counts)
 
@@ -134,27 +134,30 @@ dbDisconnect(con, shutdown = TRUE)
 library(DBI)
 library(duckdb)
 library(dplyr)
+library(dbplyr)
 library(ggplot2)
 
 # Connect to the database
-data_dir <- get_data_dir()
-db_path <- file.path(data_dir, "psi_data.duckdb")
+db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
-# Get water potential data for a specific plant
-wp_data <- tbl(con, "press_chamb_wp") %>%
-  filter(individual_id == "PINE_01") %>%
-  collect()
+# Get water potential data for a specific plant - Sorghum bicolor
+sorghum_ids <- tbl(con, "plant_types") |> 
+  filter(genus == "Sorghum" & specific_epithet == "bicolor") 
 
-# Plot water potential over time
-wp_data %>%
-  mutate(date = as.Date(as.character(date), format = "%Y%m%d")) %>%
-  ggplot(aes(x = date, y = water_potential_mean)) +
+# right join by filtered dataset above
+wp_sorg <- tbl(con, "press_chamb_wb") |> 
+  right_join(sorghum_ids, by = c("dataset_name", "individual_id"))
+
+# collect just to check and see dimensions
+wp_sorg |> collect()
+
+# Plot water potential vs leaf area
+wp_sorg |> 
+  ggplot(aes(x = leaf_area_index_m2_m2, y = water_potential_mean)) +
   geom_point() +
-  geom_errorbar(aes(ymin = water_potential_mean - water_potential_sd,
-                    ymax = water_potential_mean + water_potential_sd)) +
-  labs(title = "Plant Water Potential Over Time",
-       x = "Date",
+  labs(title = "Sorghum Water Potential by Leaf Area",
+       x = "Leaf Area (m2)",
        y = "Water Potential (MPa)") +
   theme_minimal()
 
@@ -171,31 +174,30 @@ library(dplyr)
 library(ggplot2)
 
 # Connect to the database
-data_dir <- get_data_dir()
-db_path <- file.path(data_dir, "psi_data.duckdb")
+db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
 # Get plants, water potential, and environmental data for a study site
-study <- "Example_Site_1"
+study <- "Ben_1"
 
 # Get water potential data
-wp_data <- tbl(con, "press_chamb_wp") %>%
-  filter(dataset_name == study) %>%
+wp_data <- tbl(con, "press_chamb_wb") |>
+  filter(dataset_name == study) |>
   collect()
 
 # Get environmental data
-env_data <- tbl(con, "env_vars") %>%
-  filter(dataset_name == study) %>%
+env_data <- tbl(con, "env_vars") |>
+  filter(dataset_name == study) |>
   collect()
 
-# Join water potential and VPD data by date
-combined_data <- wp_data %>%
-  inner_join(env_data, by = c("dataset_name", "date")) %>%
+# Join water potential and VPD data by date and time
+combined_data <- wp_data |>
+  inner_join(env_data, by = c("dataset_name", "date", "time")) |>
   select(date, water_potential_mean, vapor_pressure_deficit_k_pa, 
          air_temperature_c, precipitation_mm)
 
 # Plot water potential vs. VPD
-combined_data %>%
+combined_data |>
   ggplot(aes(x = vapor_pressure_deficit_k_pa, y = water_potential_mean)) +
   geom_point() +
   geom_smooth(method = "lm") +
@@ -220,33 +222,56 @@ library(DBI)
 library(duckdb)
 
 # Connect to the database
-con <- dbConnect(duckdb::duckdb(), get_data_dir())
+db_path <- get_db_path()
+con <- dbConnect(duckdb::duckdb(), db_path)
 
 # Get predawn and midday water potential measurements
-wp_data <- tbl(con, "press_chamb_wp") %>%
+wp_data <- tbl(con, "press_chamb_wb") |>
   filter(
     organ == "stem" | organ == "leaf",
     !is.na(water_potential_mean)
-  ) %>%
+  ) |>
   left_join(
     tbl(con, "plants"),
     by = c("dataset_name", "individual_id")
-  ) %>%
+  ) |>
   collect()
 
-# Create time of day category
-wp_data <- wp_data %>%
+# Create time of day category based on time values
+# The time column appears to contain seconds since midnight
+# Convert to hours for easier categorization
+wp_data_filtered <- wp_data |>
   mutate(
+    # Convert character time to numeric seconds, then to hours
+    time_numeric = as.numeric(time),
+    hour_decimal = time_numeric / 3600,  # Convert seconds to hours
+    hour = floor(hour_decimal),          # Extract integer hour
+    minute = round((hour_decimal - hour) * 60), # Extract minutes
+    
+    # Categorize based on typical measurement times
+    # NOTE: Adjust these ranges based on your specific measurement protocols
     time_of_day = case_when(
-      grepl("dawn|predawn|pre-dawn|early", time, ignore.case = TRUE) ~ "Predawn",
-      grepl("mid|noon|after", time, ignore.case = TRUE) ~ "Midday",
+      hour >= 4 & hour <= 7 ~ "Predawn",    # 4:00 AM to 7:59 AM
+      hour >= 11 & hour <= 14 ~ "Midday",   # 11:00 AM to 2:59 PM
       TRUE ~ "Other"
     )
-  ) %>%
+  ) |>
   filter(time_of_day %in% c("Predawn", "Midday"))
 
+# Alternative approach if you want to see what times are actually present:
+# wp_data |>
+#   mutate(
+#     time_numeric = as.numeric(time),
+#     hour_decimal = time_numeric / 3600,
+#     hour = floor(hour_decimal),
+#     minute = round((hour_decimal - hour) * 60),
+#     clock_time = sprintf("%02d:%02d", hour, minute)
+#   ) |>
+#   count(clock_time, sort = TRUE) |>
+#   head(20)  # This will show you the most common measurement times
+
 # Visualize water potential patterns by time of day and species
-wp_data %>%
+wp_data_filtered %>%
   ggplot(aes(x = genus, y = water_potential_mean, fill = time_of_day)) +
   geom_boxplot() +
   labs(

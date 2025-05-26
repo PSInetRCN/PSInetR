@@ -11,7 +11,7 @@
 #' @param source Character string specifying the data source, either "repo" (default) or "zenodo".
 #' @param format Character string specifying the data format to download, either "duckdb" (default) or "csv".
 #' @param dest_dir Character string specifying the destination directory for downloaded files.
-#'   If NULL (default), files will be downloaded to a default location determined by \code{get_data_dir()}.
+#'   If NULL (default), files will be downloaded to the current working directory.
 #' @param overwrite Logical indicating whether to overwrite existing files. Default is FALSE.
 #' @param repo_url Character string specifying the repository URL or name (e.g., "PSInetRCN/PSInetDB"). Only used when source = "repo".
 #'   If NULL (default), a pre-configured URL will be used.
@@ -43,7 +43,7 @@
 #' get_psi_data(source = "zenodo", format = "csv")
 #'
 #' # Specify a custom destination directory
-#' get_psi_data(dest_dir = "~/my_data")
+#' get_psi_data(dest_dir = "./my_data")
 #'
 #' # Download a specific release version
 #' get_psi_data(release_tag = "v0.1.0")
