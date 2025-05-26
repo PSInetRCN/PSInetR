@@ -44,8 +44,11 @@ First, let's download the DuckDB data (if you haven't already) and connect to it
 # Download the data (if not already available)
 data_path <- get_psi_data(format = "duckdb")
 
+# If you already have it, get the path to the db
+path_to_db <- get_db_path()
+
 # Connect to the DuckDB database
-con <- dbConnect(duckdb::duckdb(), data_path)
+con <- dbConnect(duckdb::duckdb(), path_to_db)
 
 # List available tables
 tables <- dbListTables(con)
@@ -113,30 +116,30 @@ plants_tbl <- tbl(con, "plants")
 plots_tbl <- tbl(con, "plots")
 
 # Query using dplyr syntax for water potential by species
-wp_by_species <- press_chamb_wp_tbl %>%
-  inner_join(plants_tbl, by = c("dataset_name", "individual_id")) %>%
-  group_by(genus, specific_epithet) %>%
+wp_by_species <- press_chamb_wp_tbl |>
+  inner_join(plants_tbl, by = c("dataset_name", "individual_id")) |>
+  group_by(genus, specific_epithet) |>
   summarize(
     count = n(),
     avg_potential = mean(water_potential_mean, na.rm = TRUE),
     min_potential = min(water_potential_mean, na.rm = TRUE),
     max_potential = max(water_potential_mean, na.rm = TRUE)
-  ) %>%
-  arrange(desc(count)) %>%
+  ) |>
+  arrange(desc(count)) |>
   collect()  # This executes the query and brings results into R
 
 print(wp_by_species)
 
 # Find measurements by organ type
-organ_summary <- press_chamb_wp_tbl %>%
-  group_by(organ, canopy_position) %>%
+organ_summary <- press_chamb_wp_tbl |>
+  group_by(organ, canopy_position) |>
   summarize(
     count = n(),
     avg_potential = mean(water_potential_mean, na.rm = TRUE),
     avg_n_samples = mean(water_potential_n, na.rm = TRUE)
-  ) %>%
-  ungroup() %>%
-  arrange(desc(count)) %>%
+  ) |>
+  ungroup() |>
+  arrange(desc(count)) |>
   collect()
 
 print(organ_summary)
@@ -148,26 +151,27 @@ Here are some examples of more advanced analyses that combine multiple data tabl
 
 ```{r advanced_analyses}
 # Analyze seasonal patterns in water potential
-seasonal_patterns <- press_chamb_wp_tbl %>%
+seasonal_patterns <- press_chamb_wp_tbl |>
+  # must collect first because substr can't be run by db
+  collect() |>
   # Extract month from date (YYYYMMDD format)
-  mutate(month = substr(date, 5, 6)) %>%
+  mutate(month = substr(date, 5, 6)) |>
   group_by(month) %>%
   summarize(
     avg_potential = mean(water_potential_mean, na.rm = TRUE),
     sd_potential = sd(water_potential_mean, na.rm = TRUE),
     sample_count = n()
-  ) %>%
-  collect()
+  ) 
 
 print(seasonal_patterns)
 
 # Comparing water potential with soil moisture
-soil_wp_comparison <- press_chamb_wp_tbl %>%
+soil_wp_comparison <- press_chamb_wp_tbl |>
   # Join with soil moisture data on dataset_name, plot_id, and date
   inner_join(
     tbl(con, "soil_moisture"),
     by = c("dataset_name", "plot_id", "date")
-  ) %>%
+  ) |>
   # Group by soil moisture categories (using a window function)
   mutate(
     swc_shallow_category = case_when(
@@ -188,17 +192,19 @@ soil_wp_comparison <- press_chamb_wp_tbl %>%
 print(soil_wp_comparison)
 
 # Analyzing the relationship between environmental variables and water potential
-env_wp_comparison <- press_chamb_wp_tbl %>%
+env_wp_comparison <- press_chamb_wp_tbl |>
   # Join with environmental data on dataset_name and date
   inner_join(
     tbl(con, "env_vars"),
     by = c("dataset_name", "date")
-  ) %>%
+  ) |>
   # Select relevant columns
   select(
     dataset_name, date, water_potential_mean, water_potential_sd,
     vapor_pressure_deficit_k_pa, air_temperature_c, precipitation_mm
-  ) %>%
+  ) |>
+  # collect before running summarize to make sure cor works correctly
+  collect() |>
   # Calculate correlations
   summarize(
     vpd_correlation = cor(water_potential_mean, vapor_pressure_deficit_k_pa, 
@@ -208,50 +214,36 @@ env_wp_comparison <- press_chamb_wp_tbl %>%
     precip_correlation = cor(water_potential_mean, precipitation_mm, 
                               use = "complete.obs"),
     n_observations = n()
-  ) %>%
-  collect()
+  ) 
 
 print(env_wp_comparison)
+
 ```
 
 ## Visualization Examples
 
 Let's create some visualizations with the data we've retrieved:
 
-```{r visualizations, message=FALSE, warning=FALSE}
+```{r visualizations, message=FALSE, warning=FALSE, fig.height=8, fig.width=10}
 library(ggplot2)
 library(lubridate)
 
-# Connect to database (new connection for this section)
-con <- dbConnect(duckdb::duckdb(), get_data_dir())
-
 # Get water potential data for visualization
-wp_time_data <- tbl(con, "press_chamb_wp") %>%
-  filter(!is.na(water_potential_mean)) %>%
-  collect() %>%
+wp_time_data <- tbl(con, "press_chamb_wp") |>
+  filter(!is.na(water_potential_mean)) |>
+  collect() |>
   mutate(date_parsed = ymd(as.character(date)))  # Convert YYYYMMDD to Date
 
-# Plot water potential over time
-ggplot(wp_time_data, aes(x = date_parsed, y = water_potential_mean)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "loess", se = TRUE) +
-  labs(
-    title = "Plant Water Potential Over Time",
-    x = "Date",
-    y = "Water Potential (MPa)"
-  ) +
-  theme_minimal()
-
 # Get water potential by species
-wp_species <- tbl(con, "press_chamb_wp") %>%
+wp_species <- tbl(con, "press_chamb_wp") |>
   inner_join(tbl(con, "plants"), by = c("dataset_name", "individual_id", "plot_id")) %>%
-  group_by(genus, specific_epithet) %>%
+  group_by(genus, specific_epithet) |>
   summarize(
     mean_wp = mean(water_potential_mean, na.rm = TRUE),
     sd_wp = sd(water_potential_mean, na.rm = TRUE),
     count = n()
-  ) %>%
-  filter(count > 5) %>%  # Only species with enough measurements
+  ) |>
+  filter(count > 5) |>  # Only species with enough measurements
   collect()
 
 # Create species name
@@ -279,7 +271,7 @@ The PSInet database contains both manual pressure chamber measurements and autom
 
 ```{r combined_measurements}
 # Connect to database
-con <- dbConnect(duckdb::duckdb(), get_data_dir())
+con <- dbConnect(duckdb::duckdb(), get_db_path())
 
 # Query to combine manual and automated measurements
 combined_query <- "
@@ -346,7 +338,7 @@ When working with larger PSInet datasets:
 
 ```{r performance_example}
 # Example of good practice
-con <- dbConnect(duckdb::duckdb(), get_data_dir())
+con <- dbConnect(duckdb::duckdb(), get_db_path())
 
 # Efficient query - filtering happens in database
 efficient_query <- tbl(con, "press_chamb_wp") %>%

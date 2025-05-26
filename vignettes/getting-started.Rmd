@@ -105,8 +105,7 @@ library(dplyr)
 library(dbplyr)
 
 # Connect to the DuckDB database
-data_dir <- get_data_dir()  # Get default data directory
-db_path <- file.path(data_dir, "psinet.duckdb")
+db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
 # List available tables
@@ -139,8 +138,7 @@ library(dbplyr)
 library(ggplot2)
 
 # Connect to the database
-data_dir <- get_data_dir()
-db_path <- file.path(data_dir, "psinet.duckdb")
+db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
 # Get water potential data for a specific plant - Sorghum bicolor
@@ -176,8 +174,7 @@ library(dplyr)
 library(ggplot2)
 
 # Connect to the database
-data_dir <- get_data_dir()
-db_path <- file.path(data_dir, "psinet.duckdb")
+db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
 # Get plants, water potential, and environmental data for a study site
@@ -225,8 +222,7 @@ library(DBI)
 library(duckdb)
 
 # Connect to the database
-data_dir <- get_data_dir()
-db_path <- file.path(data_dir, "psinet.duckdb")
+db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
 # Get predawn and midday water potential measurements

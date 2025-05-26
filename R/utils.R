@@ -10,6 +10,37 @@ get_data_dir <- function() {
   return(data_dir)
 }
 
+#' Get Path to PSInet Database File
+#'
+#' Returns the full path to the PSInet DuckDB database file.
+#' By default, this looks for "psinet.duckdb" in the current working directory.
+#'
+#' @param dir Character string specifying the directory containing the database file.
+#'   If NULL (default), uses the directory returned by \code{get_data_dir()}.
+#' @param filename Character string specifying the database filename.
+#'   Default is "psinet.duckdb".
+#'
+#' @return Character string with the full path to the database file.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Get path to database in default location
+#' db_path <- get_db_path()
+#' 
+#' # Get path to database in custom directory
+#' db_path <- get_db_path(dir = "~/my_data")
+#' 
+#' # Get path to database with custom filename
+#' db_path <- get_db_path(filename = "my_psinet.duckdb")
+#' }
+get_db_path <- function(dir = NULL, filename = "psinet.duckdb") {
+  if (is.null(dir)) {
+    dir <- get_data_dir()
+  }
+  return(file.path(dir, filename))
+}
+
 #' Get Latest GitHub Release Tag
 #'
 #' Fetches the latest release tag from a GitHub repository using the GitHub API.

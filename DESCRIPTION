@@ -26,5 +26,6 @@ Imports:
     covr,
     utils,
     dbplyr,
-    ggplot2
+    ggplot2,
+    lubridate
 VignetteBuilder: knitr

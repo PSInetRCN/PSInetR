@@ -8,6 +8,14 @@
 \description{
 Provides functions to access and work with plant water potential data from various sources. Allows downloading data from repositories or Zenodo, and includes utilities for data validation and manipulation.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://PSInetRCN.github.io/PSINetR/}
+  \item Report bugs at \url{https://github.com/PSInetRCN/PSINetR/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Keaton Wilson \email{keatonwilson@me.com}
 
