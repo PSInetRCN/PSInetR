@@ -52,7 +52,7 @@ You can install the development version of PSINetR from GitHub with:
 
 ```r
 # install.packages("remotes")
-remotes::install_github("PSInetRCN//PSINetR")
+remotes::install_github("PSInetRCN/PSINetR")
 ```
 
 ## Usage
