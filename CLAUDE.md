@@ -46,10 +46,6 @@ devtools::document()
 
 # Build vignettes
 devtools::build_vignettes()
-
-# Preview documentation website
-pkgdown::build_site()
-pkgdown::preview_site()
 ```
 
 ### Package Checks
