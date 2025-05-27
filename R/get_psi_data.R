@@ -28,7 +28,7 @@
 #' @param direct_url Character string specifying a direct URL to the file to download. If provided, this overrides
 #'   the repository and release tag settings and downloads directly from the specified URL.
 #' @param file_name Character string specifying the file name to download from the release. By default, this is
-#'   "psinet.duckdb" for DuckDB format and "psinet_csv.zip" for CSV format.
+#'   "psinet.duckdb" for DuckDB format. For CSV format, individual CSV files will be downloaded automatically.
 #' @param verbose Logical indicating whether to print extra progress information. Default is TRUE.
 #'
 #' @return Invisibly returns the path to the downloaded data.
@@ -39,7 +39,7 @@
 #' # Download data from repository, as DuckDB (automatically uses latest release)
 #' get_psi_data()
 #'
-#' # Download data from Zenodo, as CSV files
+#' # Download individual CSV files from Zenodo
 #' get_psi_data(source = "zenodo", format = "csv")
 #'
 #' # Specify a custom destination directory

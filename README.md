@@ -92,8 +92,8 @@ PSINetR accesses data from:
 
 The data is available in two formats:
 
-1. **DuckDB**: A fast, efficient database format ideal for analysis
-2. **CSV files**: Standard format for maximum compatibility
+1. **DuckDB**: A fast, efficient database format ideal for analysis (single file)
+2. **CSV files**: Individual CSV files for each database table, providing maximum compatibility
 
 ## Documentation
 
