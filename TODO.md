@@ -3,7 +3,6 @@
 ## Package Metadata
 - [x] Fill in actual author information in DESCRIPTION file
 - [x] Update GitHub username references in README.md
-- [x] Update GitHub username references in _pkgdown.yml
 
 ## Data Source Configuration
 - [ ] Add specific repository URL information in download_from_repo() function

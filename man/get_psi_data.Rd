@@ -48,7 +48,7 @@ and you'll need to provide a specific release_tag.}
 the repository and release tag settings and downloads directly from the specified URL.}
 
 \item{file_name}{Character string specifying the file name to download from the release. By default, this is
-"psinet.duckdb" for DuckDB format and "psinet_csv.zip" for CSV format.}
+"psinet.duckdb" for DuckDB format. For CSV format, individual CSV files will be downloaded automatically.}
 
 \item{verbose}{Logical indicating whether to print extra progress information. Default is TRUE.}
 }

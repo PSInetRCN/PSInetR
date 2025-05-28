@@ -52,8 +52,14 @@ You can install the development version of PSINetR from GitHub with:
 
 ```r
 # install.packages("remotes")
+# To install with vignettes (recommended):
+remotes::install_github("PSInetRCN/PSINetR", build_vignettes = TRUE)
+
+# Or to install without vignettes (faster):
 remotes::install_github("PSInetRCN/PSINetR")
 ```
+
+**Note**: Installing with `build_vignettes = TRUE` is recommended to access the package documentation and examples, but requires that you have Pandoc installed on your system.
 
 ## Usage
 
@@ -86,8 +92,8 @@ PSINetR accesses data from:
 
 The data is available in two formats:
 
-1. **DuckDB**: A fast, efficient database format ideal for analysis
-2. **CSV files**: Standard format for maximum compatibility
+1. **DuckDB**: A fast, efficient database format ideal for analysis (single file)
+2. **CSV files**: Individual CSV files for each database table, providing maximum compatibility
 
 ## Documentation
 
@@ -95,6 +101,10 @@ For more detailed information, check out the vignettes:
 
 - `vignette("getting-started", package = "PSINetR")`
 - `vignette("working-with-duckdb", package = "PSINetR")`
+
+If you installed without vignettes, you can view them online:
+- [Getting Started](https://github.com/PSInetRCN/PSINetR/blob/main/vignettes/getting-started.Rmd)
+- [Working with DuckDB](https://github.com/PSInetRCN/PSINetR/blob/main/vignettes/working-with-duckdb.Rmd)
 
 ## Development
 

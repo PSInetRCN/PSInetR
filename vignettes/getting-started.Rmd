@@ -32,7 +32,7 @@ The plant water potential data can be downloaded from either a repository or Zen
 # Download data from repository as DuckDB (default)
 get_psi_data()
 
-# Download data from Zenodo as CSV files
+# Download individual CSV files from Zenodo
 get_psi_data(source = "zenodo", format = "csv")
 
 # If the repository is private, provide a GitHub token
@@ -146,7 +146,7 @@ sorghum_ids <- tbl(con, "plant_types") |>
   filter(genus == "Sorghum" & specific_epithet == "bicolor") 
 
 # right join by filtered dataset above
-wp_sorg <- tbl(con, "press_chamb_wb") |> 
+wp_sorg <- tbl(con, "press_chamb_wp") |> 
   right_join(sorghum_ids, by = c("dataset_name", "individual_id"))
 
 # collect just to check and see dimensions
@@ -181,7 +181,7 @@ con <- dbConnect(duckdb::duckdb(), db_path)
 study <- "Ben_1"
 
 # Get water potential data
-wp_data <- tbl(con, "press_chamb_wb") |>
+wp_data <- tbl(con, "press_chamb_wp") |>
   filter(dataset_name == study) |>
   collect()
 
@@ -226,7 +226,7 @@ db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
 # Get predawn and midday water potential measurements
-wp_data <- tbl(con, "press_chamb_wb") |>
+wp_data <- tbl(con, "press_chamb_wp") |>
   filter(
     organ == "stem" | organ == "leaf",
     !is.na(water_potential_mean)

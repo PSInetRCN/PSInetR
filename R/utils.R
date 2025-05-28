@@ -139,30 +139,38 @@ get_latest_release_tag <- function(repo_url, github_token = NULL, verbose = TRUE
 #' @param direct_url Character string specifying a direct URL to the file to download. If provided, this overrides
 #'   the repository and release tag settings and downloads directly from the specified URL.
 #' @param file_name Character string specifying the file name to download from the release. By default, this is
-#'   "psinet.duckdb" for DuckDB format and "psinet_csv.zip" for CSV format.
+#'   "psinet.duckdb" for DuckDB format. For CSV format, individual CSV files will be downloaded automatically.
 #' @param verbose Logical indicating whether to print progress information. Default is TRUE.
 #'
-#' @importFrom utils unzip
 #' @return Character string with the path to the downloaded data.
 #' @keywords internal
 download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_token, release_tag = NULL, direct_url = NULL, file_name = NULL, verbose = TRUE) {
+  # Define the expected CSV files for the PSInet database
+  csv_files <- c(
+    "study_site.csv",
+    "data_description.csv", 
+    "treatments.csv",
+    "plots.csv",
+    "plants.csv",
+    "plant_types.csv",
+    "press_chamb_wp.csv",
+    "auto_wp.csv",
+    "soil_moisture.csv",
+    "env_vars.csv"
+  )
   # Handle direct URL if provided
   if (!is.null(direct_url)) {
     if (verbose) {
       cli::cli_alert_info("Using direct URL: {.url {direct_url}}")
     }
     
-    # Construct file paths based on format
+    # For direct URLs, we can only handle single files (DuckDB)
     if (format == "duckdb") {
       file_name <- basename(direct_url)
       file_path <- file.path(dest_dir, file_name)
       download_url <- direct_url
     } else {
-      # For CSV format, we'll download a zip file and extract it
-      file_name <- basename(direct_url)
-      file_path <- file.path(dest_dir, gsub("\\.zip$", "", file_name))
-      zip_path <- file.path(dest_dir, file_name)
-      download_url <- direct_url
+      cli::cli_abort("Direct URL downloads are only supported for DuckDB format. For CSV format, use repo/zenodo sources.")
     }
   } else {
     # Set default repo URL if not provided
@@ -203,14 +211,12 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
       download_url <- sprintf("https://github.com/%s/releases/download/%s/%s", 
                               repo_path, release_tag, duckdb_file)
     } else {
-      # For CSV format, we'll download a zip file and extract it
-      csv_file <- if(!is.null(file_name)) file_name else "psinet_csv.zip"
-      file_path <- file.path(dest_dir, gsub("\\.zip$", "", csv_file))
-      zip_path <- file.path(dest_dir, csv_file)
+      # For CSV format, create a directory and prepare to download individual files
+      csv_dir <- file.path(dest_dir, "csv_data")
+      file_path <- csv_dir
       
-      # For direct download we'll use the standard URL but will use the API for actual download
-      download_url <- sprintf("https://github.com/%s/releases/download/%s/%s", 
-                              repo_path, release_tag, csv_file)
+      # We'll handle CSV downloads differently - no single download_url
+      download_url <- NULL
     }
   }
   
@@ -220,9 +226,21 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
     return(file_path)
   }
   
-  # Download file using GitHub API - this is the more reliable method
-  cli::cli_alert_info("Downloading data from {.url {download_url}}")
-  cli::cli_progress_step("Downloading", spinner = TRUE)
+  # Handle different download approaches for DuckDB vs CSV
+  if (format == "duckdb") {
+    # Download single DuckDB file using GitHub API - this is the more reliable method
+    cli::cli_alert_info("Downloading data from {.url {download_url}}")
+    cli::cli_progress_step("Downloading", spinner = TRUE)
+  } else {
+    # Download individual CSV files
+    cli::cli_alert_info("Downloading CSV files from GitHub release")
+    cli::cli_progress_step("Preparing CSV download", spinner = TRUE)
+    
+    # Create CSV directory if it doesn't exist
+    if (!dir.exists(file_path)) {
+      dir.create(file_path, recursive = TRUE)
+    }
+  }
   
   # Configure HTTP request with authentication if needed
   headers <- c(
@@ -233,8 +251,77 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
     headers <- c(headers, "Authorization" = paste("token", github_token))
   }
   
-  # If we're downloading from GitHub releases, use the API approach which is more reliable
-  if (grepl("github.com/.*/releases/download", download_url)) {
+  # Handle CSV vs DuckDB downloads differently
+  if (format == "csv") {
+    # Download individual CSV files
+    cli::cli_progress_done()
+    
+    # Get release information first
+    api_url <- paste0("https://api.github.com/repos/", repo_path, "/releases/tags/", release_tag)
+    
+    if (verbose) {
+      cli::cli_alert_info("Accessing GitHub release API to get available files")
+    }
+    
+    api_response <- httr::GET(
+      api_url,
+      httr::add_headers(.headers = headers)
+    )
+    
+    if (httr::http_error(api_response)) {
+      cli::cli_abort(paste(
+        "Failed to access release:", release_tag,
+        "\nCheck if the release exists and your token has sufficient permissions."
+      ))
+    }
+    
+    release_info <- httr::content(api_response)
+    
+    # Find CSV files in the release
+    csv_assets <- list()
+    for (asset in release_info$assets) {
+      if (asset$name %in% csv_files) {
+        csv_assets[[asset$name]] <- asset
+      }
+    }
+    
+    if (length(csv_assets) == 0) {
+      cli::cli_abort("No CSV files found in release {release_tag}. Expected files: {paste(csv_files, collapse = ', ')}")
+    }
+    
+    # Download each CSV file
+    cli::cli_alert_info("Found {length(csv_assets)} CSV files to download")
+    download_count <- 0
+    
+    for (csv_file in names(csv_assets)) {
+      asset <- csv_assets[[csv_file]]
+      output_path <- file.path(file_path, csv_file)
+      
+      cli::cli_progress_step("Downloading {csv_file}", spinner = TRUE)
+      
+      # Add the Accept header for getting raw content from the API
+      api_headers <- c(headers, "Accept" = "application/octet-stream")
+      
+      # Download via the GitHub API
+      response <- httr::GET(
+        asset$url,
+        httr::write_disk(output_path, overwrite = TRUE),
+        httr::add_headers(.headers = api_headers)
+      )
+      
+      if (httr::http_error(response)) {
+        cli::cli_progress_done(result = "failed")
+        cli::cli_abort("Failed to download {csv_file}: {httr::http_status(response)$message}")
+      }
+      
+      download_count <- download_count + 1
+      cli::cli_progress_done(result = "done")
+    }
+    
+    cli::cli_alert_success("Successfully downloaded {download_count} CSV files to {.file {file_path}}")
+    return(file_path)
+    
+  } else if (!is.null(download_url) && grepl("github.com/.*/releases/download", download_url)) {
     # Get the repo path, tag and filename
     repo_parts <- strsplit(download_url, "/releases/download/")[[1]]
     repo_part <- gsub("https://github.com/", "", repo_parts[1])
@@ -243,8 +330,8 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
     tag <- tag_file_parts[1]
     file_name_part <- tag_file_parts[2]
     
-    # Set up download path
-    output_path <- ifelse(format == "duckdb", file_path, zip_path)
+    # Set up download path (only for DuckDB since CSV is handled above)
+    output_path <- file_path
     
     # Use the GitHub API to get release information
     api_url <- paste0("https://api.github.com/repos/", repo_part, "/releases/tags/", tag)
@@ -308,15 +395,15 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
       ))
     }
   } else {
-    # Not a GitHub release URL, just do a normal download
+    # Not a GitHub release URL, just do a normal download (only for DuckDB)
     response <- httr::GET(
       download_url,
-      httr::write_disk(ifelse(format == "duckdb", file_path, zip_path), overwrite = TRUE),
+      httr::write_disk(file_path, overwrite = TRUE),
       httr::add_headers(.headers = headers)
     )
   }
   
-  # Check for errors
+  # Check for errors (only for DuckDB downloads, CSV errors are handled above)
   if (httr::http_error(response)) {
     cli::cli_progress_done(result = "failed")
     status_code <- httr::status_code(response)
@@ -336,16 +423,6 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
     }
   }
   
-  # Extract if it's a zip file
-  if (format == "csv") {
-    cli::cli_progress_step("Extracting CSV files", spinner = TRUE)
-    if (!dir.exists(file_path)) {
-      dir.create(file_path, recursive = TRUE)
-    }
-    utils::unzip(zip_path, exdir = file_path)
-    file.remove(zip_path)
-  }
-  
   cli::cli_progress_done(result = "done")
   cli::cli_alert_success("Data successfully downloaded to {.file {file_path}}")
   return(file_path)
@@ -363,6 +440,20 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
 #' @return Character string with the path to the downloaded data.
 #' @keywords internal
 download_from_zenodo <- function(format, dest_dir, overwrite, zenodo_doi) {
+  # Define the expected CSV files for the PSInet database
+  csv_files <- c(
+    "study_site.csv",
+    "data_description.csv", 
+    "treatments.csv",
+    "plots.csv",
+    "plants.csv",
+    "plant_types.csv",
+    "press_chamb_wp.csv",
+    "auto_wp.csv",
+    "soil_moisture.csv",
+    "env_vars.csv"
+  )
+  
   # Set default Zenodo DOI if not provided
   if (is.null(zenodo_doi)) {
     zenodo_doi <- getOption("PSINetR.zenodo_doi", "10.5281/zenodo.XXXXXXX")
@@ -370,15 +461,14 @@ download_from_zenodo <- function(format, dest_dir, overwrite, zenodo_doi) {
   
   # Construct file paths based on format
   if (format == "duckdb") {
-    file_path <- file.path(dest_dir, "psi_data.duckdb")
+    file_path <- file.path(dest_dir, "psinet.duckdb")
     # Convert DOI to download URL
-    download_url <- paste0("https://zenodo.org/record/", zenodo_doi, "/files/psi_data.duckdb")
+    download_url <- paste0("https://zenodo.org/record/", zenodo_doi, "/files/psinet.duckdb")
   } else {
-    # For CSV format, we'll download a zip file and extract it
-    file_path <- file.path(dest_dir, "psi_data_csv")
-    zip_path <- file.path(dest_dir, "psi_data_csv.zip")
-    # Convert DOI to download URL
-    download_url <- paste0("https://zenodo.org/record/", zenodo_doi, "/files/psi_data_csv.zip")
+    # For CSV format, create a directory for individual CSV files
+    csv_dir <- file.path(dest_dir, "csv_data")
+    file_path <- csv_dir
+    download_url <- NULL  # We'll handle CSV files individually
   }
   
   # Check if files already exist
@@ -387,33 +477,66 @@ download_from_zenodo <- function(format, dest_dir, overwrite, zenodo_doi) {
     return(file_path)
   }
   
-  # Download file
-  cli::cli_alert_info("Downloading data from Zenodo: {.val {zenodo_doi}}")
-  cli::cli_progress_step("Downloading", spinner = TRUE)
-  
-  # Use httr to download the file
-  response <- httr::GET(
-    download_url,
-    httr::write_disk(ifelse(format == "duckdb", file_path, zip_path), overwrite = TRUE)
-  )
-  
-  # Check for errors
-  if (httr::http_error(response)) {
-    cli::cli_progress_done(result = "failed")
-    cli::cli_abort("Failed to download data: {httr::http_status(response)$message}")
-  }
-  
-  # Extract if it's a zip file
-  if (format == "csv") {
-    cli::cli_progress_step("Extracting CSV files", spinner = TRUE)
+  # Handle different download approaches for DuckDB vs CSV
+  if (format == "duckdb") {
+    # Download single DuckDB file
+    cli::cli_alert_info("Downloading data from Zenodo: {.val {zenodo_doi}}")
+    cli::cli_progress_step("Downloading", spinner = TRUE)
+    
+    # Use httr to download the file
+    response <- httr::GET(
+      download_url,
+      httr::write_disk(file_path, overwrite = TRUE)
+    )
+    
+    # Check for errors
+    if (httr::http_error(response)) {
+      cli::cli_progress_done(result = "failed")
+      cli::cli_abort("Failed to download data: {httr::http_status(response)$message}")
+    }
+    
+    cli::cli_progress_done(result = "done")
+    cli::cli_alert_success("Data successfully downloaded to {.file {file_path}}")
+    
+  } else {
+    # Download individual CSV files
+    cli::cli_alert_info("Downloading CSV files from Zenodo: {.val {zenodo_doi}}")
+    
+    # Create CSV directory if it doesn't exist
     if (!dir.exists(file_path)) {
       dir.create(file_path, recursive = TRUE)
     }
-    utils::unzip(zip_path, exdir = file_path)
-    file.remove(zip_path)
+    
+    # Download each CSV file
+    download_count <- 0
+    
+    for (csv_file in csv_files) {
+      csv_url <- paste0("https://zenodo.org/record/", zenodo_doi, "/files/", csv_file)
+      output_path <- file.path(file_path, csv_file)
+      
+      cli::cli_progress_step("Downloading {csv_file}", spinner = TRUE)
+      
+      response <- httr::GET(
+        csv_url,
+        httr::write_disk(output_path, overwrite = TRUE)
+      )
+      
+      if (httr::http_error(response)) {
+        # Don't fail completely if one file is missing - some releases might not have all files
+        cli::cli_progress_done(result = "skipped")
+        cli::cli_alert_warning("Could not download {csv_file} - file may not exist in this release")
+      } else {
+        download_count <- download_count + 1
+        cli::cli_progress_done(result = "done")
+      }
+    }
+    
+    if (download_count == 0) {
+      cli::cli_abort("No CSV files could be downloaded from Zenodo release {zenodo_doi}")
+    }
+    
+    cli::cli_alert_success("Successfully downloaded {download_count} CSV files to {.file {file_path}}")
   }
   
-  cli::cli_progress_done(result = "done")
-  cli::cli_alert_success("Data successfully downloaded to {.file {file_path}}")
   return(file_path)
 }
