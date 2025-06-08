@@ -1,12 +1,12 @@
-# PSINetR
+# PSInetR
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/PSInetRCN//PSINetR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/PSInetRCN//PSINetR/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/PSInetRCN//PSInetR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/PSInetRCN//PSInetR/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 ## Overview
 
-PSINetR provides easy access to plant water potential (Ψ) data from the PSInet Research Coordination Network. The package allows users to download, validate, and work with plant water potential measurements across various species, ecosystems, and time periods.
+PSInetR provides easy access to plant water potential (Ψ) data from the PSInet Research Coordination Network. The package allows users to download, validate, and work with plant water potential measurements across various species, ecosystems, and time periods.
 
 ### About PSInet
 
@@ -48,15 +48,15 @@ The PSInet database includes:
 
 ## Installation
 
-You can install the development version of PSINetR from GitHub with:
+You can install the development version of PSInetR from GitHub with:
 
 ```r
 # install.packages("remotes")
 # To install with vignettes (recommended):
-remotes::install_github("PSInetRCN/PSINetR", build_vignettes = TRUE)
+remotes::install_github("PSInetRCN/PSInetR", build_vignettes = TRUE)
 
 # Or to install without vignettes (faster):
-remotes::install_github("PSInetRCN/PSINetR")
+remotes::install_github("PSInetRCN/PSInetR")
 ```
 
 **Note**: Installing with `build_vignettes = TRUE` is recommended to access the package documentation and examples, but requires that you have Pandoc installed on your system.
@@ -64,7 +64,7 @@ remotes::install_github("PSInetRCN/PSINetR")
 ## Usage
 
 ```r
-library(PSINetR)
+library(PSInetR)
 
 # Download data (default: from repository as DuckDB)
 get_psi_data()
@@ -85,7 +85,7 @@ get_psi_data(github_token = "your_token")
 
 ## Data Sources
 
-PSINetR accesses data from:
+PSInetR accesses data from:
 
 1. **GitHub Repository**: Contains the most up-to-date data
 2. **Zenodo**: Contains stable, versioned data releases with DOIs
@@ -99,12 +99,12 @@ The data is available in two formats:
 
 For more detailed information, check out the vignettes:
 
-- `vignette("getting-started", package = "PSINetR")`
-- `vignette("working-with-duckdb", package = "PSINetR")`
+- `vignette("getting-started", package = "PSInetR")`
+- `vignette("working-with-duckdb", package = "PSInetR")`
 
 If you installed without vignettes, you can view them online:
-- [Getting Started](https://github.com/PSInetRCN/PSINetR/blob/main/vignettes/getting-started.Rmd)
-- [Working with DuckDB](https://github.com/PSInetRCN/PSINetR/blob/main/vignettes/working-with-duckdb.Rmd)
+- [Getting Started](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/getting-started.Rmd)
+- [Working with DuckDB](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/working-with-duckdb.Rmd)
 
 ## Development
 
@@ -117,7 +117,7 @@ To generate a local test coverage report:
 if (!requireNamespace("covr", quietly = TRUE)) install.packages("covr")
 
 # Generate a test coverage report
-PSINetR:::generate_coverage_report()
+PSInetR:::generate_coverage_report()
 ```
 
 This will create an HTML report in the `coverage` directory and display a summary in the console.
@@ -132,6 +132,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-PSINetR is part of the PSInet Research Coordination Network initiative, which aims to build a global database of plant water potential measurements. For more information, visit [the PSInet website](https://psinetrcn.github.io/).
+PSInetR is part of the PSInet Research Coordination Network initiative, which aims to build a global database of plant water potential measurements. For more information, visit [the PSInet website](https://psinetrcn.github.io/).
 
 The PSInet initiative brings together researchers from multiple institutions to address fundamental questions about plant water use, drought responses, and ecosystem functioning under changing climate conditions.

@@ -42,7 +42,7 @@ generate_coverage_report <- function(type = c("both", "report", "summary"),
     total_pct <- summary_data$totalcoverage
     
     # Print summary to console
-    cat("\n=== PSINetR Test Coverage Summary ===\n")
+    cat("\n=== PSInetR Test Coverage Summary ===\n")
     cat(sprintf("Total coverage: %.2f%%\n", total_pct))
     cat("\nCoverage by file:\n")
     for (file_data in summary_data$filecoverage) {

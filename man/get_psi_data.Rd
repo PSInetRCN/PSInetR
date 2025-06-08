@@ -70,7 +70,7 @@ the data from the latest release unless a specific release tag is provided.
 # Download data from repository, as DuckDB (automatically uses latest release)
 get_psi_data()
 
-# Download data from Zenodo, as CSV files
+# Download individual CSV files from Zenodo
 get_psi_data(source = "zenodo", format = "csv")
 
 # Specify a custom destination directory

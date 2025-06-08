@@ -1,8 +1,8 @@
 ---
-title: "Getting Started with PSINetR"
+title: "Getting Started with PSInetR"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting Started with PSINetR}
+  %\VignetteIndexEntry{Getting Started with PSInetR}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,12 +15,12 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(PSINetR)
+library(PSInetR)
 ```
 
 ## Introduction
 
-PSINetR provides functions to access and work with plant water potential (Ψ) data from the PSInet Research Coordination Network. This vignette demonstrates how to download, access, and analyze this data.
+PSInetR provides functions to access and work with plant water potential (Ψ) data from the PSInet Research Coordination Network. This vignette demonstrates how to download, access, and analyze this data.
 
 PSInet is a network focused on collecting and aggregating plant water potential measurements to improve understanding of ecosystem responses to drought and heat stress. Water potential can be thought of as the "blood pressure of the natural world" that directly controls plant functioning during drought. The PSInetR package gives you access to this valuable dataset.
 
@@ -298,6 +298,6 @@ As the PSInet database grows, researchers can:
 
 ## Conclusion
 
-This vignette provided a basic introduction to the PSINetR package and the PSInet database structure. The package makes it easy to access and analyze plant water potential data for ecological research, drought studies, and plant physiology investigations.
+This vignette provided a basic introduction to the PSInetR package and the PSInet database structure. The package makes it easy to access and analyze plant water potential data for ecological research, drought studies, and plant physiology investigations.
 
 For more detailed information on working specifically with the DuckDB database format, refer to the "working-with-duckdb" vignette.

@@ -6,7 +6,7 @@ knitr::opts_chunk$set(
 
 
 ## ----setup--------------------------------------------------------------------
-library(PSINetR)
+library(PSInetR)
 
 
 ## ----downloading, eval=FALSE--------------------------------------------------

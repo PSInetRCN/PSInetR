@@ -5,6 +5,6 @@
 
 .Renviron
 
-# PSINetR data files
+# PSInetR data files
 *.duckdb
 *.csv

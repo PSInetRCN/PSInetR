@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-PSINetR is an R package that provides access to plant water potential data from a collaborative network of researchers. The package allows users to download, validate, and work with plant water potential measurements across various species, ecosystems, and time periods.
+PSInetR is an R package that provides access to plant water potential data from a collaborative network of researchers. The package allows users to download, validate, and work with plant water potential measurements across various species, ecosystems, and time periods.
 
 Key capabilities:
 - Download plant water potential data from GitHub repositories or Zenodo
@@ -87,7 +87,7 @@ The package has a straightforward structure:
 
 1. User calls `get_psi_data()` with parameters for source, format, etc.
 2. Based on source parameter, either `download_from_repo()` or `download_from_zenodo()` is called
-3. Data is downloaded to the specified directory (default: ~/.PSINetR/)
+3. Data is downloaded to the specified directory (default: ~/.PSInetR/)
 4. Data can be accessed directly from the downloaded location
 
 ## Development Notes

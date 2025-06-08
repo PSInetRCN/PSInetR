@@ -1,4 +1,4 @@
 library(testthat)
-library(PSINetR)
+library(PSInetR)
 
-test_check("PSINetR")
+test_check("PSInetR")

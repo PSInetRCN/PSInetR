@@ -1,4 +1,4 @@
-url: https://PSInetRCN.github.io/PSINetR/
+url: https://PSInetRCN.github.io/PSInetR/
 
 template:
   bootstrap: 5
@@ -25,7 +25,7 @@ reference:
 articles:
 - title: "Getting Started"
   desc: >
-    Basic introduction to PSINetR
+    Basic introduction to PSInetR
   contents:
   - getting-started
 - title: "Working with Data"

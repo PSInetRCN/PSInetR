@@ -68,7 +68,7 @@ get_latest_release_tag <- function(repo_url, github_token = NULL, verbose = TRUE
   headers <- c(
     "Accept" = "application/vnd.github.v3+json",
     "X-GitHub-Api-Version" = "2022-11-28",
-    "User-Agent" = "PSINetR/0.1.0"
+    "User-Agent" = "PSInetR/0.1.0"
   )
   
   if (!is.null(github_token) && github_token != "") {
@@ -175,7 +175,7 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
   } else {
     # Set default repo URL if not provided
     if (is.null(repo_url)) {
-      repo_url <- getOption("PSINetR.repo_url", "PSInetRCN/PSInetDB")
+      repo_url <- getOption("PSInetR.repo_url", "PSInetRCN/PSInetDB")
     }
     
     # Get the latest release tag if not specified
@@ -244,7 +244,7 @@ download_from_repo <- function(format, dest_dir, overwrite, repo_url, github_tok
   
   # Configure HTTP request with authentication if needed
   headers <- c(
-    "User-Agent" = "PSINetR/0.1.0"
+    "User-Agent" = "PSInetR/0.1.0"
   )
   
   if (!is.null(github_token) && github_token != "") {
@@ -456,7 +456,7 @@ download_from_zenodo <- function(format, dest_dir, overwrite, zenodo_doi) {
   
   # Set default Zenodo DOI if not provided
   if (is.null(zenodo_doi)) {
-    zenodo_doi <- getOption("PSINetR.zenodo_doi", "10.5281/zenodo.XXXXXXX")
+    zenodo_doi <- getOption("PSInetR.zenodo_doi", "10.5281/zenodo.XXXXXXX")
   }
   
   # Construct file paths based on format
