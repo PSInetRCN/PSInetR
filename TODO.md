@@ -1,4 +1,4 @@
-# PSINetR Development To-Do List
+# PSInetR Development To-Do List
 
 ## Package Metadata
 - [x] Fill in actual author information in DESCRIPTION file

@@ -7,7 +7,7 @@ knitr::opts_chunk$set(
 
 
 ## ----setup--------------------------------------------------------------------
-library(PSINetR)
+library(PSInetR)
 library(dplyr)
 library(DBI)
 library(duckdb)
