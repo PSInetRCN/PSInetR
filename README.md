@@ -22,8 +22,9 @@ PSInet fills a critical missing link between information about environmental dri
 
 ### Lead Investigators
 - Kim Novick (Indiana University)
-- Jessica Guo (University of Arizona)
+- Jessica Guo (Harvey Mudd College)
 - Dan Johnson (University of Georgia)
+- Kate McCulloh (University of Wisconsin - Madison)
 
 ## Features
 
