@@ -30,7 +30,7 @@ The plant water potential data can be downloaded from either a repository or Zen
 
 ```{r downloading, eval=FALSE}
 # Download data from repository as DuckDB (default)
-get_psi_data()
+get_psi_data(overwrite = TRUE)
 
 # Download individual CSV files from Zenodo
 get_psi_data(source = "zenodo", format = "csv")
@@ -51,7 +51,7 @@ check_psi_data()
 check_psi_data(format = "csv")
 
 # Check and validate the data
-check_psi_data(validate = TRUE, dir = "/Users/keatonwilson/Documents/Projects/PSInetR/vignettes/")
+check_psi_data(validate = TRUE, dir = "/path/to/your/directory/")
 ```
 
 ## PSInet Database Structure
