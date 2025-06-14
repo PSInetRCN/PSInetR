@@ -75,8 +75,8 @@ db_schema <- DBI::dbGetQuery(con, "
 ")
 
 # View the schema of a specific table
-press_chamb_fields <- dbListFields(con, "press_chamb_wp")
-print(press_chamb_fields)
+chamber_wp_fields <- dbListFields(con, "chamber_wp")
+print(chamber_wp_fields)
 ```
 
 ## Basic Querying
@@ -89,7 +89,7 @@ study_sites <- dbGetQuery(con, "SELECT dataset_name, latitude_wgs84, longitude_w
 print(study_sites)
 
 # Get plant species information
-plant_species <- dbGetQuery(con, "SELECT DISTINCT genus, specific_epithet FROM plants LIMIT 10")
+plant_species <- dbGetQuery(con, "SELECT DISTINCT genus, specific_epithet FROM plant LIMIT 10")
 print(plant_species)
 
 # Get statistics on water potential measurements
@@ -99,7 +99,7 @@ wp_stats <- dbGetQuery(con, "
     AVG(water_potential_mean) as avg_potential,
     MIN(water_potential_mean) as min_potential,
     MAX(water_potential_mean) as max_potential
-  FROM press_chamb_wp
+  FROM chamber_wp
   WHERE water_potential_mean IS NOT NULL
 ")
 print(wp_stats)
@@ -111,13 +111,13 @@ You can also use dplyr syntax to work with the database, which often makes compl
 
 ```{r dplyr_queries}
 # Create references to the tables
-press_chamb_wp_tbl <- tbl(con, "press_chamb_wp")
-plants_tbl <- tbl(con, "plants")
-plots_tbl <- tbl(con, "plots")
+chamber_wp_tbl <- tbl(con, "chamber_wp")
+plant_tbl <- tbl(con, "plant")
+plot_tbl <- tbl(con, "plot")
 
 # Query using dplyr syntax for water potential by species
-wp_by_species <- press_chamb_wp_tbl |>
-  inner_join(plants_tbl, by = c("dataset_name", "individual_id")) |>
+wp_by_species <- chamber_wp_tbl |>
+  inner_join(plant_tbl, by = c("dataset_name", "individual_id")) |>
   group_by(genus, specific_epithet) |>
   summarize(
     count = n(),
@@ -131,7 +131,7 @@ wp_by_species <- press_chamb_wp_tbl |>
 print(wp_by_species)
 
 # Find measurements by organ type
-organ_summary <- press_chamb_wp_tbl |>
+organ_summary <- chamber_wp_tbl |>
   group_by(organ, canopy_position) |>
   summarize(
     count = n(),
@@ -151,7 +151,7 @@ Here are some examples of more advanced analyses that combine multiple data tabl
 
 ```{r advanced_analyses}
 # Analyze seasonal patterns in water potential
-seasonal_patterns <- press_chamb_wp_tbl |>
+seasonal_patterns <- chamber_wp_tbl |>
   # must collect first because substr can't be run by db
   collect() |>
   # Extract month from date (YYYYMMDD format)
@@ -165,11 +165,11 @@ seasonal_patterns <- press_chamb_wp_tbl |>
 
 print(seasonal_patterns)
 
-# Comparing water potential with soil moisture
-soil_wp_comparison <- press_chamb_wp_tbl |>
-  # Join with soil moisture data on dataset_name, plot_id, and date
+# Comparing water potential with soil variables
+soil_wp_comparison <- chamber_wp_tbl |>
+  # Join with soil data on dataset_name, plot_id, and date
   inner_join(
-    tbl(con, "soil_moisture"),
+    tbl(con, "soil_var"),
     by = c("dataset_name", "plot_id", "date")
   ) |>
   # Group by soil moisture categories (using a window function)
@@ -191,11 +191,11 @@ soil_wp_comparison <- press_chamb_wp_tbl |>
 
 print(soil_wp_comparison)
 
-# Analyzing the relationship between environmental variables and water potential
-env_wp_comparison <- press_chamb_wp_tbl |>
-  # Join with environmental data on dataset_name and date
+# Analyzing the relationship between meteorological variables and water potential
+met_wp_comparison <- chamber_wp_tbl |>
+  # Join with meteorological data on dataset_name and date
   inner_join(
-    tbl(con, "env_vars"),
+    tbl(con, "met_var"),
     by = c("dataset_name", "date")
   ) |>
   # Select relevant columns
@@ -216,7 +216,7 @@ env_wp_comparison <- press_chamb_wp_tbl |>
     n_observations = n()
   ) 
 
-print(env_wp_comparison)
+print(met_wp_comparison)
 
 ```
 
@@ -229,14 +229,14 @@ library(ggplot2)
 library(lubridate)
 
 # Get water potential data for visualization
-wp_time_data <- tbl(con, "press_chamb_wp") |>
+wp_time_data <- tbl(con, "chamber_wp") |>
   filter(!is.na(water_potential_mean)) |>
   collect() |>
   mutate(date_parsed = ymd(as.character(date)))  # Convert YYYYMMDD to Date
 
 # Get water potential by species
-wp_species <- tbl(con, "press_chamb_wp") |>
-  inner_join(tbl(con, "plants"), by = c("dataset_name", "individual_id", "plot_id")) %>%
+wp_species <- tbl(con, "chamber_wp") |>
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id", "plot_id")) %>%
   group_by(genus, specific_epithet) |>
   summarize(
     mean_wp = mean(water_potential_mean, na.rm = TRUE),
@@ -285,8 +285,8 @@ SELECT
   pc.water_potential_sd,
   p.genus,
   p.specific_epithet
-FROM press_chamb_wp pc
-JOIN plants p ON pc.dataset_name = p.dataset_name AND pc.individual_id = p.individual_id
+FROM chamber_wp pc
+JOIN plant p ON pc.dataset_name = p.dataset_name AND pc.individual_id = p.individual_id
 WHERE pc.water_potential_mean IS NOT NULL
 
 UNION ALL
@@ -302,7 +302,7 @@ SELECT
   p.genus,
   p.specific_epithet
 FROM auto_wp a
-JOIN plants p ON a.dataset_name = p.dataset_name AND a.individual_id = p.individual_id
+JOIN plant p ON a.dataset_name = p.dataset_name AND a.individual_id = p.individual_id
 WHERE a.water_potential_mean IS NOT NULL
 LIMIT 1000  -- Limit to avoid memory issues
 "
@@ -341,7 +341,7 @@ When working with larger PSInet datasets:
 con <- dbConnect(duckdb::duckdb(), get_db_path())
 
 # Efficient query - filtering happens in database
-efficient_query <- tbl(con, "press_chamb_wp") %>%
+efficient_query <- tbl(con, "chamber_wp") %>%
   filter(water_potential_mean < -1.0) %>%
   select(dataset_name, individual_id, date, water_potential_mean) %>%
   collect()
