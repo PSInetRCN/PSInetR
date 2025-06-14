@@ -100,11 +100,13 @@ The data is available in two formats:
 
 For more detailed information, check out the vignettes:
 
-- `vignette("getting-started", package = "PSInetR")`
-- `vignette("working-with-duckdb", package = "PSInetR")`
+- `vignette("getting-started", package = "PSInetR")` - Package overview and basic setup
+- `vignette("data-analysis-examples", package = "PSInetR")` - Practical analysis examples
+- `vignette("working-with-duckdb", package = "PSInetR")` - Advanced database operations
 
 If you installed without vignettes, you can view them online:
 - [Getting Started](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/getting-started.Rmd)
+- [Data Analysis Examples](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/data-analysis-examples.Rmd)
 - [Working with DuckDB](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/working-with-duckdb.Rmd)
 
 ## Development

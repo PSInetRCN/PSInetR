@@ -104,210 +104,54 @@ study_site → plot → plant → water potential measurements
 
 ## Working with the Data
 
-After downloading the data, you can start working with it. The following examples demonstrate basic data analysis workflows.
+Once you have downloaded the data, you can begin analyzing it. The PSInet database is stored in DuckDB format, which provides fast and efficient querying capabilities.
 
-### Example 1: Basic Data Exploration
+### Basic Database Connection
 
-```{r basic-exploration, eval=FALSE}
-library(DBI)
-library(duckdb)
-library(dplyr)
-library(dbplyr)
-
-# Connect to the DuckDB database
-db_path <- get_db_path()
-con <- dbConnect(duckdb::duckdb(), db_path)
-
-# List available tables
-dbListTables(con)
-
-# Preview the study sites
-study_sites <- tbl(con, "study_site") |>
-  collect()
-head(study_sites)
-
-# Count plants by species
-species_counts <- tbl(con, "plant") |>
-  group_by(genus, specific_epithet) |>
-  summarize(plant_count = n()) |>
-  arrange(desc(plant_count)) |>
-  collect()
-head(species_counts)
-
-# Don't forget to disconnect
-dbDisconnect(con, shutdown = TRUE)
-```
-
-### Example 2: Exploring Water Potential Data
-
-```{r water-potential, eval=FALSE}
-library(DBI)
-library(duckdb)
-library(dplyr)
-library(dbplyr)
-library(ggplot2)
-
-# Connect to the database
-db_path <- get_db_path()
-con <- dbConnect(duckdb::duckdb(), db_path)
-
-# Get water potential data for a specific plant - Sorghum bicolor
-sorghum_ids <- tbl(con, "plant") |> 
-  filter(genus == "Sorghum" & specific_epithet == "bicolor") 
-
-# right join by filtered dataset above
-wp_sorg <- tbl(con, "chamber_wp") |> 
-  right_join(sorghum_ids, by = c("dataset_name", "individual_id"))
-
-# collect just to check and see dimensions
-wp_sorg |> collect()
-
-# Plot water potential vs leaf area
-wp_sorg |> 
-  ggplot(aes(x = leaf_area_index_m2_m2, y = water_potential_mean)) +
-  geom_point() +
-  labs(title = "Sorghum Water Potential by Leaf Area",
-       x = "Leaf Area (m2)",
-       y = "Water Potential (MPa)") +
-  theme_minimal()
-
-# Disconnect
-dbDisconnect(con, shutdown = TRUE)
-```
-
-### Example 3: Combining Environmental and Water Potential Data
-
-```{r combined-analysis, eval=FALSE}
-library(DBI)
-library(duckdb)
-library(dplyr)
-library(ggplot2)
-
-# Connect to the database
-db_path <- get_db_path()
-con <- dbConnect(duckdb::duckdb(), db_path)
-
-# Get plants, water potential, and environmental data for a study site
-study <- "Ben_1"
-
-# Get water potential data
-wp_data <- tbl(con, "chamber_wp") |>
-  filter(dataset_name == study) |>
-  collect()
-
-# Get meteorological data
-met_data <- tbl(con, "met_var") |>
-  filter(dataset_name == study) |>
-  collect()
-
-# Join water potential and VPD data by date and time
-combined_data <- wp_data |>
-  inner_join(met_data, by = c("dataset_name", "date", "time")) |>
-  select(date, water_potential_mean, vapor_pressure_deficit_k_pa, 
-         air_temperature_c, precipitation_mm)
-
-# Plot water potential vs. VPD
-combined_data |>
-  ggplot(aes(x = vapor_pressure_deficit_k_pa, y = water_potential_mean)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  labs(title = "Plant Water Potential vs. Vapor Pressure Deficit",
-       x = "VPD (kPa)",
-       y = "Water Potential (MPa)") +
-  theme_minimal()
-
-# Disconnect
-dbDisconnect(con, shutdown = TRUE)
-```
-
-## Adding the Database to Your Analysis Pipeline
-
-The PSInet database can be integrated with other R packages for advanced analysis:
-
-```{r integration, eval=FALSE}
-# Example: Use tidyverse for data wrangling and visualization
-library(dplyr)
-library(ggplot2)
+```{r basic-connection, eval=FALSE}
 library(DBI)
 library(duckdb)
 
-# Connect to the database
+# Get the path to the database and connect
 db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
-# Get predawn and midday water potential measurements
-wp_data <- tbl(con, "chamber_wp") |>
-  filter(
-    organ == "stem" | organ == "leaf",
-    !is.na(water_potential_mean)
-  ) |>
-  left_join(
-    tbl(con, "plant"),
-    by = c("dataset_name", "individual_id")
-  ) |>
-  collect()
+# List all available tables
+tables <- dbListTables(con)
+print(tables)
 
-# Create time of day category based on time values
-# The time column appears to contain seconds since midnight
-# Convert to hours for easier categorization
-wp_data_filtered <- wp_data |>
-  mutate(
-    # Convert character time to numeric seconds, then to hours
-    time_numeric = as.numeric(time),
-    hour_decimal = time_numeric / 3600,  # Convert seconds to hours
-    hour = floor(hour_decimal),          # Extract integer hour
-    minute = round((hour_decimal - hour) * 60), # Extract minutes
-    
-    # Categorize based on typical measurement times
-    # NOTE: Adjust these ranges based on your specific measurement protocols
-    time_of_day = case_when(
-      hour >= 4 & hour <= 7 ~ "Predawn",    # 4:00 AM to 7:59 AM
-      hour >= 11 & hour <= 14 ~ "Midday",   # 11:00 AM to 2:59 PM
-      TRUE ~ "Other"
-    )
-  ) |>
-  filter(time_of_day %in% c("Predawn", "Midday"))
-
-# Alternative approach if you want to see what times are actually present:
-# wp_data |>
-#   mutate(
-#     time_numeric = as.numeric(time),
-#     hour_decimal = time_numeric / 3600,
-#     hour = floor(hour_decimal),
-#     minute = round((hour_decimal - hour) * 60),
-#     clock_time = sprintf("%02d:%02d", hour, minute)
-#   ) |>
-#   count(clock_time, sort = TRUE) |>
-#   head(20)  # This will show you the most common measurement times
-
-# Visualize water potential patterns by time of day and species
-wp_data_filtered %>%
-  ggplot(aes(x = genus, y = water_potential_mean, fill = time_of_day)) +
-  geom_boxplot() +
-  labs(
-    title = "Water Potential by Species and Time of Day",
-    x = "Genus",
-    y = "Water Potential (MPa)",
-    fill = "Time of Day"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Disconnect
+# Always disconnect when finished
 dbDisconnect(con, shutdown = TRUE)
 ```
 
-## Future Directions
+### Next Steps
 
-As the PSInet database grows, researchers can:
+For detailed analysis examples and workflows, see the "Data Analysis Examples with PSInetR" vignette:
 
-1. **Compare Drought Responses**: Evaluate how different species respond to water stress
-2. **Assess Climate Change Impacts**: Analyze how water potential patterns change with climate variables
-3. **Build Hydraulic Models**: Use water potential data as inputs for plant hydraulic models
-4. **Improve Drought Forecasting**: Develop better predictive models of ecosystem responses to drought
+```{r next-steps, eval=FALSE}
+# View the examples vignette
+vignette("data-analysis-examples", package = "PSInetR")
+```
+
+For advanced database operations and performance optimization, refer to the "Working with DuckDB" vignette:
+
+```{r advanced, eval=FALSE}
+# View the DuckDB vignette
+vignette("working-with-duckdb", package = "PSInetR")
+```
+
+## Research Applications
+
+As the PSInet database grows, researchers can use it for:
+
+1. **Drought Response Studies**: Compare how different species respond to water stress
+2. **Climate Change Research**: Analyze water potential patterns under changing climate conditions
+3. **Hydraulic Modeling**: Use water potential data to parameterize plant hydraulic models
+4. **Ecosystem Monitoring**: Track ecosystem water status across different environments
+5. **Cross-Network Synthesis**: Integrate with other ecological networks through linked data
 
 ## Conclusion
 
-This vignette provided a basic introduction to the PSInetR package and the PSInet database structure. The package makes it easy to access and analyze plant water potential data for ecological research, drought studies, and plant physiology investigations.
+This vignette provided an introduction to PSInetR and how to download and access the PSInet database. The package makes plant water potential data easily accessible for ecological research, drought studies, and plant physiology investigations.
 
-For more detailed information on working specifically with the DuckDB database format, refer to the "working-with-duckdb" vignette.
+The PSInet database represents a valuable resource for understanding plant-water relationships across diverse ecosystems and species. By providing standardized access to this data, PSInetR enables researchers to conduct large-scale synthetic analyses that would not be possible with individual datasets alone.
