@@ -26,6 +26,8 @@ library(duckdb)
 
 This vignette demonstrates how to work with plant water potential data stored in DuckDB format. DuckDB is a high-performance analytical database system that works well with R and provides efficient querying capabilities for plant water potential (Ψ) datasets.
 
+For more information about DuckDB and its capabilities, see the [official DuckDB documentation](https://duckdb.org/docs/).
+
 ### Why DuckDB?
 
 DuckDB offers several advantages for working with plant water potential data:
@@ -57,7 +59,61 @@ print(tables)
 
 ## Understanding the Database Structure
 
-The PSInet database contains several tables organized in a hierarchical structure. Let's first explore what tables are available:
+For comprehensive details about all variables, data types, and units, see the [PSInetDB data schema documentation](https://github.com/PSInetRCN/PSInetDB/blob/main/docs/schema/data_schema.md).
+
+### Database Creation and Scope
+
+The PSInet database was created from individual data submissions encompassing plant water potential time series, where water potential measurements were collected either manually using pressure chambers or automatically with sensors. For inclusion in the database, we defined a time series as more than one measurement on the same experimental unit, whether that was an individual plant or group of plants. 
+
+The database comprises both observational and manipulative experiments, conducted either in situ or in controlled environments such as glasshouses and growth chambers. We encouraged the submission of associated soil and meteorological time series that temporally overlap with the reported plant water potentials, though this was not required for inclusion.
+
+### Dataset Naming Conventions
+
+Datasets in PSInet follow specific naming conventions based on their source:
+
+- **Direct submissions to PSInet**: Named using the first three letters of the submitter's last name, followed by a number (e.g., "And_1", "Smi_2")
+- **SAPFLUXNET collections**: Retain the original site name used by SAPFLUXNET for consistency with that network
+
+Most studies measured water potential repeatedly at a single location, but some conducted measurements at multiple sites as part of a single study. For multi-site studies, the naming convention includes a letter after the number (e.g., "Pel_2a") and the variable `multi_site` in the `study_site` table is set to TRUE.
+
+### Database Organization
+
+The PSInet database is organized around **6 core tables** containing information about data collection and experimental design, and **5 measurement tables** containing the actual measurements. Additionally, each core and measurement table has an associated **quality control flag table**.
+
+#### Core Tables
+
+These tables contain metadata and experimental design information. **Important note**: Authors contributed their own `plot_id` and `individual_id` values, so these variables are not named consistently across the database. To correctly interpret plant water potential values, they must be joined with the appropriate subset of these core tables.
+
+#### Measurement Tables
+
+The database includes five types of measurement tables:
+- **chamber_wp**: Manual pressure chamber water potential measurements
+- **auto_wp**: Automated sensor water potential measurements  
+- **soil_var**: Soil water content and soil water potential measurements
+- **met_var**: Meteorological variables
+- **auto_wp_sensor**: Detailed sensor installation information
+
+Due to the diverse array of experimental designs, measurements can be reported at different organizational scales:
+
+- **Pressure chamber water potentials and soil variables**: Can be associated with either individual plants or plots
+- **Meteorological variables**: Representative of the entire study site
+- **Automated water potential sensors**: Can only record measurements for individual plants, but individual plants may be instrumented with multiple sensors
+
+Therefore, `auto_wp` measurements must be interpreted in conjunction with `auto_wp_sensor`, which reports detailed information about each sensor installation, including duration, location, and calibration details.
+
+#### Quality Control Flag Tables
+
+Each core table (`plant`) and all five measurement tables have an associated flag table (e.g., `chamber_wp_flag`, `auto_wp_flag`, etc.). Flag tables are identical in dimensions to their corresponding data tables and contain only logical TRUE/FALSE values. These values indicate whether each entry passes our quality control checks, including range checks that can be found in the [PSInetDB data schema documentation](https://github.com/PSInetRCN/PSInetDB/blob/main/docs/schema/data_schema.md).
+
+**Important note**: We used the same range checks as SAPFLUXNET to maintain consistency across networks. However, values flagged as FALSE should not be automatically discarded. Some FALSE flags indicate instrument drift, while others represent measurements from sites with known extreme conditions (e.g., exceptionally high vapor pressure deficit). All values included in the database have been confirmed with the original data submitters.
+
+#### SAPFLUXNET Integration
+
+Data originating from SAPFLUXNET have an additional `sapfluxnet` table, which records the plant name and code as originally used in the SAPFLUXNET database, facilitating cross-network data integration and comparison.
+
+### Exploring the Database Structure
+
+Let's examine the database structure programmatically:
 
 ```{r explore_tables}
 # List all tables in the database
@@ -77,37 +133,65 @@ db_schema <- DBI::dbGetQuery(con, "
 # View the schema of a specific table
 chamber_wp_fields <- dbListFields(con, "chamber_wp")
 print(chamber_wp_fields)
+
+# Check the dimensions of core tables
+core_tables <- c("study_site", "plot", "plant", "treatment", "data_description", "addtl_data")
+for(table in core_tables) {
+  count <- dbGetQuery(con, paste("SELECT COUNT(*) as count FROM", table))
+  cat(table, ":", count$count, "records\n")
+}
+
+# Check the dimensions of measurement tables  
+measurement_tables <- c("chamber_wp", "auto_wp", "soil_var", "met_var", "auto_wp_sensor")
+for(table in measurement_tables) {
+  count <- dbGetQuery(con, paste("SELECT COUNT(*) as count FROM", table))
+  cat(table, ":", count$count, "records\n")
+}
 ```
 
 ## Basic Querying
 
-Now that we understand the database structure, let's explore the data with some basic queries:
+Now that we understand the database structure, let's explore the data with some basic queries using dplyr syntax:
 
 ```{r basic_queries}
 # Get a list of all study sites
-study_sites <- dbGetQuery(con, "SELECT dataset_name, latitude_wgs84, longitude_wgs84 FROM study_site LIMIT 10")
+study_sites <- tbl(con, "study_site") |>
+  select(dataset_name, latitude_wgs84, longitude_wgs84) |>
+  head(10) |>
+  collect()
 print(study_sites)
 
 # Get plant species information
-plant_species <- dbGetQuery(con, "SELECT DISTINCT genus, specific_epithet FROM plant LIMIT 10")
+plant_species <- tbl(con, "plant") |>
+  select(genus, specific_epithet) |>
+  distinct() |>
+  head(10) |>
+  collect()
 print(plant_species)
 
 # Get statistics on water potential measurements
-wp_stats <- dbGetQuery(con, "
-  SELECT 
-    COUNT(*) as count,
-    AVG(water_potential_mean) as avg_potential,
-    MIN(water_potential_mean) as min_potential,
-    MAX(water_potential_mean) as max_potential
-  FROM chamber_wp
-  WHERE water_potential_mean IS NOT NULL
-")
+wp_stats <- tbl(con, "chamber_wp") |>
+  filter(!is.na(water_potential_mean)) |>
+  summarize(
+    count = n(),
+    avg_potential = mean(water_potential_mean, na.rm = TRUE),
+    min_potential = min(water_potential_mean, na.rm = TRUE),
+    max_potential = max(water_potential_mean, na.rm = TRUE)
+  ) |>
+  collect()
 print(wp_stats)
 ```
 
 ## Using dplyr with DuckDB
 
-You can also use dplyr syntax to work with the database, which often makes complex queries more readable:
+You can also use dplyr syntax to work with the database, which often makes complex queries more readable. This functionality is enabled by the **dbplyr** package, which acts as a bridge between dplyr's data manipulation syntax and database systems.
+
+**How it works:**
+- **dplyr** provides the familiar data wrangling functions (`filter()`, `select()`, `group_by()`, etc.)
+- **dbplyr** translates these dplyr commands into SQL queries that run on the database
+- **DuckDB** (and many other databases like PostgreSQL, MySQL, SQLite) can be used with this approach
+
+This means you can use the same dplyr syntax you know from working with data.frames, but the operations actually happen in the database, which is much more efficient for large datasets. The translation to SQL happens automatically behind the scenes.
 
 ```{r dplyr_queries}
 # Create references to the tables
@@ -156,7 +240,7 @@ seasonal_patterns <- chamber_wp_tbl |>
   collect() |>
   # Extract month from date (YYYYMMDD format)
   mutate(month = substr(date, 5, 6)) |>
-  group_by(month) %>%
+  group_by(month) |>
   summarize(
     avg_potential = mean(water_potential_mean, na.rm = TRUE),
     sd_potential = sd(water_potential_mean, na.rm = TRUE),
@@ -180,13 +264,13 @@ soil_wp_comparison <- chamber_wp_tbl |>
       swc_mean_shallow < 0.3 ~ "medium",
       TRUE ~ "high"
     )
-  ) %>%
-  group_by(swc_shallow_category) %>%
+  ) |>
+  group_by(swc_shallow_category) |>
   summarize(
     avg_water_potential = mean(water_potential_mean, na.rm = TRUE),
     sd_water_potential = sd(water_potential_mean, na.rm = TRUE),
     n_observations = n()
-  ) %>%
+  ) |>
   collect()
 
 print(soil_wp_comparison)
@@ -236,7 +320,7 @@ wp_time_data <- tbl(con, "chamber_wp") |>
 
 # Get water potential by species
 wp_species <- tbl(con, "chamber_wp") |>
-  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id", "plot_id")) %>%
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id", "plot_id")) |>
   group_by(genus, specific_epithet) |>
   summarize(
     mean_wp = mean(water_potential_mean, na.rm = TRUE),
@@ -267,51 +351,39 @@ dbDisconnect(con, shutdown = TRUE)
 
 ## Working with Both Automated and Manual Measurements
 
-The PSInet database contains both manual pressure chamber measurements and automated continuous measurements. Here's how to work with both:
+The PSInet database contains both automated continuous measurements and manual pressure chamber measurements. Here's how to work with both:
 
 ```{r combined_measurements}
 # Connect to database
 con <- dbConnect(duckdb::duckdb(), get_db_path())
 
-# Query to combine manual and automated measurements
-combined_query <- "
-SELECT
-  'manual' as measurement_type,
-  pc.dataset_name,
-  pc.individual_id,
-  pc.date,
-  pc.time,
-  pc.water_potential_mean,
-  pc.water_potential_sd,
-  p.genus,
-  p.specific_epithet
-FROM chamber_wp pc
-JOIN plant p ON pc.dataset_name = p.dataset_name AND pc.individual_id = p.individual_id
-WHERE pc.water_potential_mean IS NOT NULL
+# Combine automated and manual measurements using dplyr
+# First get automated measurements
+auto_data <- tbl(con, "auto_wp") |>
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id")) |>
+  filter(!is.na(water_potential_mean)) |>
+  select(dataset_name, individual_id, date, time, 
+         water_potential_mean, water_potential_sd, genus, specific_epithet) |>
+  mutate(measurement_type = "automated") |>
+  head(500) |>  # Limit to avoid memory issues
+  collect()
 
-UNION ALL
+# Then get manual measurements  
+manual_data <- tbl(con, "chamber_wp") |>
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id")) |>
+  filter(!is.na(water_potential_mean)) |>
+  select(dataset_name, individual_id, date, time,
+         water_potential_mean, water_potential_sd, genus, specific_epithet) |>
+  mutate(measurement_type = "manual") |>
+  head(500) |>  # Limit to avoid memory issues
+  collect()
 
-SELECT
-  'automated' as measurement_type,
-  a.dataset_name,
-  a.individual_id,
-  a.date,
-  a.time,
-  a.water_potential_mean,
-  a.water_potential_sd,
-  p.genus,
-  p.specific_epithet
-FROM auto_wp a
-JOIN plant p ON a.dataset_name = p.dataset_name AND a.individual_id = p.individual_id
-WHERE a.water_potential_mean IS NOT NULL
-LIMIT 1000  -- Limit to avoid memory issues
-"
+# Combine the datasets
+combined_data <- bind_rows(auto_data, manual_data)
 
-combined_data <- dbGetQuery(con, combined_query)
-
-# Compare manual vs automated measurements
-measurement_summary <- combined_data %>%
-  group_by(measurement_type) %>%
+# Compare automated vs manual measurements
+measurement_summary <- combined_data |>
+  group_by(measurement_type) |>
   summarize(
     count = n(),
     avg_potential = mean(water_potential_mean, na.rm = TRUE),
@@ -341,9 +413,9 @@ When working with larger PSInet datasets:
 con <- dbConnect(duckdb::duckdb(), get_db_path())
 
 # Efficient query - filtering happens in database
-efficient_query <- tbl(con, "chamber_wp") %>%
-  filter(water_potential_mean < -1.0) %>%
-  select(dataset_name, individual_id, date, water_potential_mean) %>%
+efficient_query <- tbl(con, "chamber_wp") |>
+  filter(water_potential_mean < -1.0) |>
+  select(dataset_name, individual_id, date, water_potential_mean) |>
   collect()
 
 # Disconnect

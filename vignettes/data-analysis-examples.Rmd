@@ -216,11 +216,13 @@ con <- dbConnect(duckdb::duckdb(), db_path)
 
 # Analyze water potential by treatment and soil conditions
 treatment_analysis <- tbl(con, "chamber_wp") |>
+  # Filter out records with missing plot_id first
+  filter(!is.na(plot_id)) |>
   # Join with plant information
   inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id")) |>
-  # Join with plot information
-  inner_join(tbl(con, "plot"), by = c("dataset_name", "plot_id")) |>
-  # Join with treatment information
+  # Join with plot information (use plot_id.x from chamber_wp)
+  inner_join(tbl(con, "plot"), by = c("dataset_name" = "dataset_name", "plot_id.x" = "plot_id")) |>
+  # Join with treatment information (using plot's treatment_id)
   left_join(tbl(con, "treatment"), by = c("dataset_name", "treatment_id")) |>
   # Filter for meaningful data
   filter(!is.na(water_potential_mean), !is.na(treatment_description)) |>
