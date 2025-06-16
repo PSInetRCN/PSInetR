@@ -20,6 +20,7 @@ library(PSInetR)
 library(dplyr)
 library(DBI)
 library(duckdb)
+library(lubridate)
 ```
 
 ## Introduction
@@ -35,7 +36,7 @@ DuckDB offers several advantages for working with plant water potential data:
 1. **Performance**: DuckDB provides fast analytical queries, even on larger datasets
 2. **Ease of use**: No separate server installation required
 3. **SQL and dplyr compatibility**: Familiar query syntax options
-4. **Zero configuration**: Works immediately with R
+4. **Zero configuration**: Works immediately with R (or Python)
 5. **Column-oriented storage**: Optimized for analytical workloads common in ecological research
 
 ## Connecting to the Database
@@ -151,7 +152,7 @@ for(table in measurement_tables) {
 
 ## Basic Querying
 
-Now that we understand the database structure, let's explore the data with some basic queries using dplyr syntax:
+Now that we understand the database structure, let's explore the data with some basic queries using dplyr syntax (we'll talk more about dplyr syntax here in a second):
 
 ```{r basic_queries}
 # Get a list of all study sites
@@ -184,7 +185,7 @@ print(wp_stats)
 
 ## Using dplyr with DuckDB
 
-You can also use dplyr syntax to work with the database, which often makes complex queries more readable. This functionality is enabled by the **dbplyr** package, which acts as a bridge between dplyr's data manipulation syntax and database systems.
+Above, we show dplyr syntax to work with the database (whereas our first queries were with raw SQL), which often makes complex queries more readable. This functionality is enabled by the **dbplyr** package, which acts as a bridge between dplyr's data manipulation syntax and database systems.
 
 **How it works:**
 - **dplyr** provides the familiar data wrangling functions (`filter()`, `select()`, `group_by()`, etc.)
@@ -239,7 +240,7 @@ seasonal_patterns <- chamber_wp_tbl |>
   # must collect first because substr can't be run by db
   collect() |>
   # Extract month from date (YYYYMMDD format)
-  mutate(month = substr(date, 5, 6)) |>
+  mutate(month = month(date)) |>
   group_by(month) |>
   summarize(
     avg_potential = mean(water_potential_mean, na.rm = TRUE),
