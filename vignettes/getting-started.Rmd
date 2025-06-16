@@ -26,7 +26,7 @@ PSInet is a network focused on collecting and aggregating plant water potential 
 
 ## Downloading the Data
 
-The plant water potential data can be downloaded from either a repository or Zenodo. By default, the data is downloaded as a DuckDB file, but it can also be downloaded as CSV files.
+The plant water potential data can be downloaded from either a repository or Zenodo (forthcoming). By default, the data is downloaded as a DuckDB file, but it can also be downloaded as CSV files.
 
 ```{r downloading, eval=FALSE}
 # Download data from repository as DuckDB (default)
