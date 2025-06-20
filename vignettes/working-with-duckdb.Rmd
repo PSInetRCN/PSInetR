@@ -79,7 +79,7 @@ Most studies measured water potential repeatedly at a single location, but some 
 
 ### Database Organization
 
-The PSInet database is organized around **6 core tables** containing information about data collection and experimental design, and **5 measurement tables** containing the actual measurements. Additionally, each core and measurement table has an associated **quality control flag table**.
+The PSInet database is organized around **6 core tables** containing information about data collection and experimental design, and **5 measurement tables** containing the actual measurements. Additionally, one core and each measurement table has an associated **quality control flag table**, and there is a table of SAPFLUXNET IDs for cross-compatibility. 
 
 #### Core Tables
 
@@ -89,16 +89,19 @@ These tables contain metadata and experimental design information. **Important n
 
 The database includes five types of measurement tables:
 - **chamber_wp**: Manual pressure chamber water potential measurements
-- **auto_wp**: Automated sensor water potential measurements  
+- **auto_wp_sensor**: Sensor details associated with automated water potential
+- **auto_wp**: Automated water potential measurements  
 - **soil_var**: Soil water content and soil water potential measurements
 - **met_var**: Meteorological variables
-- **auto_wp_sensor**: Detailed sensor installation information
+
 
 Due to the diverse array of experimental designs, measurements can be reported at different organizational scales:
 
-- **Pressure chamber water potentials and soil variables**: Can be associated with either individual plants or plots
+- **Pressure chamber water potentials**: Are associated with individuals or groups of individuals as listed in the `plant` table. Can be reported as either single measurements, or the mean of multiple measurements 
+- **Soil variables**: 
+Can be associated with either individual plants or plots (including the whole study)
 - **Meteorological variables**: Representative of the entire study site
-- **Automated water potential sensors**: Can only record measurements for individual plants, but individual plants may be instrumented with multiple sensors
+- **Automated water potentials**: Are reported for individual plants, but individual plants may be instrumented with multiple sensors
 
 Therefore, `auto_wp` measurements must be interpreted in conjunction with `auto_wp_sensor`, which reports detailed information about each sensor installation, including duration, location, and calibration details.
 
@@ -106,7 +109,7 @@ Therefore, `auto_wp` measurements must be interpreted in conjunction with `auto_
 
 Each core table (`plant`) and all five measurement tables have an associated flag table (e.g., `chamber_wp_flag`, `auto_wp_flag`, etc.). Flag tables are identical in dimensions to their corresponding data tables and contain only logical TRUE/FALSE values. These values indicate whether each entry passes our quality control checks, including range checks that can be found in the [PSInetDB data schema documentation](https://github.com/PSInetRCN/PSInetDB/blob/main/docs/schema/data_schema.md).
 
-**Important note**: We used the same range checks as SAPFLUXNET to maintain consistency across networks. However, values flagged as FALSE should not be automatically discarded. Some FALSE flags indicate instrument drift, while others represent measurements from sites with known extreme conditions (e.g., exceptionally high vapor pressure deficit). All values included in the database have been confirmed with the original data submitters.
+**Important note**: We used the same range checks as SAPFLUXNET to maintain consistency across networks. However, values flagged as FALSE should not be automatically discarded. Some FALSE flags indicate instrument drift, while others represent measurements from sites with known extreme conditions (e.g., exceptionally high vapor pressure deficit or low relative humidity). All values included in the database have been confirmed with the original data submitter. It is up to the database user's discretion whether to retain or omit flagged data. 
 
 #### SAPFLUXNET Integration
 

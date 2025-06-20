@@ -29,7 +29,7 @@ library(lubridate)
 
 This vignette provides practical examples for analyzing plant water potential data using the PSInetR package. These examples demonstrate common analysis workflows and show how to integrate PSInet data with other R packages for ecological research.
 
-Before working through these examples, make sure you have downloaded the PSInet data using `get_psi_data()`. See the "Getting Started with PSInetR" vignette for details on downloading and understanding the database structure.
+Before working through these examples, make sure you have downloaded the PSInet data using `get_psi_data()`. See the "Getting Started with PSInetR" and "Working with DuckDB" vignettes for details on downloading the data, understanding database structure, and accessing the database.
 
 ## Example 1: Basic Data Exploration
 
