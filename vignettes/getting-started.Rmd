@@ -57,33 +57,37 @@ The PSInet database follows a hierarchical structure that organizes water potent
 
 2. **data_description**: Provides descriptions of the available data types and measurements for each study site.
 
-3. **treatment**: Documents experimental treatments applied at study sites.
+3. **addtl_data**: Information about additional data availability across networks.
 
-4. **plot**: Contains information about experimental plots, including vegetation type, soil properties, and terrain details.
+4. **treatment**: Documents experimental treatments applied at study sites.
 
-5. **plant**: Stores data about individual plants or groups of plants, including species information, size measurements, and plant social status.
+5. **plot**: Contains information about experimental plots, including vegetation type, soil properties, and terrain details.
 
-6. **sapfluxnet**: Links to SapFluxNet data for cross-network compatibility.
+6. **plant**: Stores data about individual plants or groups of plants, including species information, size measurements, and plant social status.
 
-7. **addtl_data**: Information about additional data availability across networks.
 
 ### Measurement Tables
 
 1. **chamber_wp**: Manual pressure chamber water potential measurements.
 
-2. **auto_wp**: Automated water potential sensor measurements.
+2. **auto_wp_sensor**: Sensor details associatd with automated measurements.
 
-3. **auto_wp_sensor**: Detailed sensor information for automated measurements.
+3. **auto_wp**: Automated water potential sensor measurements.
 
 4. **soil_var**: Soil water content and soil water potential measurements.
 
-5. **met_var**: Meteorological variables like precipitation, temperature, humidity, and radiation.
+5. **met_var**: Meteorological variables like precipitation, air temperature, relative humidity, and radiation.
 
-### Quality Control Tables
+### Auxillary Tables
+
+For cross-network compatibility with SAPFLUXNET:
+- **sapfluxnet**
 
 Each measurement table has a corresponding flag table for quality control:
-- **chamber_wp_flag**, **auto_wp_flag**, **auto_wp_sensor_flag**
-- **plant_flag**, **soil_var_flag**, **met_var_flag**
+- **chamber_wp_flag**, **auto_wp_sensor_flag**, **auto_wp_flag**, **soil_var_flag**, **met_var_flag**
+
+The plant table also has a corresponding flag table:
+- **plant_flag**
 
 ### Key Database Relationships
 
