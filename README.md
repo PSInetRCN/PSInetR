@@ -89,25 +89,25 @@ get_psi_data(github_token = "your_token")
 PSInetR accesses data from:
 
 1. **GitHub Repository**: Contains the most up-to-date data
-2. **Zenodo**: Contains stable, versioned data releases with DOIs
+2. **Zenodo**: Contains stable, versioned data releases with DOIs (forthcoming)
 
 The data is available in two formats:
 
 1. **DuckDB**: A fast, efficient database format ideal for analysis (single file)
-2. **CSV files**: Individual CSV files for each database table, providing maximum compatibility
+2. **CSV files**: Individual CSV files for each database table, providing maximum compatibility (forthcoming)
 
 ## Documentation
 
 For more detailed information, check out the vignettes:
 
 - `vignette("getting-started", package = "PSInetR")` - Package overview and basic setup
+- `vignette("working-with-duckdb", package = "PSInetR")` - Accessing database with DuckDB
 - `vignette("data-analysis-examples", package = "PSInetR")` - Practical analysis examples
-- `vignette("working-with-duckdb", package = "PSInetR")` - Advanced database operations
 
 If you installed without vignettes, you can view them online:
 - [Getting Started](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/getting-started.Rmd)
-- [Data Analysis Examples](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/data-analysis-examples.Rmd)
 - [Working with DuckDB](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/working-with-duckdb.Rmd)
+- [Data Analysis Examples](https://github.com/PSInetRCN/PSInetR/blob/main/vignettes/data-analysis-examples.Rmd)
 
 ## Development
 
