@@ -55,7 +55,7 @@ The PSInet database follows a hierarchical structure that organizes water potent
 
 1. **study_site**: Contains information about research locations where plant-soil interaction studies are conducted, including geographic coordinates, study period, and investigator details.
 
-2. **data_description**: Provides descriptions of the available data types and measurements for each study site.
+2. **data_description**: Provides descriptions of the available data types and their units for each study site.
 
 3. **addtl_data**: Information about additional data availability across networks.
 
