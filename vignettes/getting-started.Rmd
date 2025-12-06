@@ -70,7 +70,7 @@ The PSInet database follows a hierarchical structure that organizes water potent
 
 1. **chamber_wp**: Manual pressure chamber water potential measurements.
 
-2. **auto_wp_sensor**: Sensor details associatd with automated measurements.
+2. **auto_wp_sensor**: Sensor details associated with automated measurements.
 
 3. **auto_wp**: Automated water potential sensor measurements.
 
@@ -78,7 +78,7 @@ The PSInet database follows a hierarchical structure that organizes water potent
 
 5. **met_var**: Meteorological variables like precipitation, air temperature, relative humidity, and radiation.
 
-### Auxillary Tables
+### Auxiliary Tables
 
 For cross-network compatibility with SAPFLUXNET:
 - **sapfluxnet**
