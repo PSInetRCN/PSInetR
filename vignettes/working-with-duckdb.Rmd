@@ -87,7 +87,7 @@ These tables contain metadata and experimental design information. **Important n
 
 #### Measurement Tables
 
-The database includes five types of measurement tables:
+The database includes five main types of measurement tables:
 - **chamber_wp**: Manual pressure chamber water potential measurements
 - **auto_wp_sensor**: Sensor details associated with automated water potential
 - **auto_wp**: Automated water potential measurements  
@@ -337,16 +337,22 @@ wp_species <- tbl(con, "chamber_wp") |>
 # Create species name
 wp_species$species <- paste(wp_species$genus, wp_species$specific_epithet)
 
-# Plot water potential by species
-ggplot(wp_species, aes(x = reorder(species, mean_wp), y = mean_wp)) +
-  geom_bar(stat = "identity") +
+# Show only the 20 species with most extreme (lowest) water potentials
+top_species <- wp_species |>
+  arrange(mean_wp) |>
+  head(20)
+
+top_species$species <- paste(top_species$genus, top_species$specific_epithet)
+
+ggplot(top_species, aes(x = reorder(species, mean_wp), y = mean_wp)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
   geom_errorbar(aes(ymin = mean_wp - sd_wp, ymax = mean_wp + sd_wp), width = 0.2) +
   labs(
-    title = "Average Water Potential by Species",
+    title = "Top 20 Species with Lowest Water Potential",
     x = "Species",
     y = "Water Potential (MPa)"
   ) +
-  coord_flip() +  # Flip coordinates for better readability
+  coord_flip() +
   theme_minimal()
 
 # Don't forget to disconnect
