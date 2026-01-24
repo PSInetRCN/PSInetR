@@ -8,3 +8,9 @@
 # PSInetR data files
 *.duckdb
 *.csv
+
+# mac junk
+.DS_Store
+
+# AI tooling
+claude.md
