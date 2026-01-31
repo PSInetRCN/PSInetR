@@ -23,6 +23,7 @@ library(dplyr)
 library(dbplyr)
 library(ggplot2)
 library(lubridate)
+library(tidyr)
 ```
 
 ## Introduction
@@ -69,22 +70,24 @@ Now let's dive into the water potential measurements for a specific species:
 db_path <- get_db_path()
 con <- dbConnect(duckdb::duckdb(), db_path)
 
-# Get water potential data for a specific plant - Sorghum bicolor
-sorghum_ids <- tbl(con, "plant") |> 
-  filter(genus == "Sorghum" & specific_epithet == "bicolor") 
+# Get water potential data for a specific plant - Quercus alba
+quercus_ids <- tbl(con, "plant") |> 
+  filter(genus == "Quercus") 
 
 # right join by filtered dataset above
-wp_sorg <- tbl(con, "chamber_wp") |> 
-  right_join(sorghum_ids, by = c("dataset_name", "individual_id"))
+wp_quercus <- tbl(con, "chamber_wp") |> 
+  right_join(quercus_ids, by = c("dataset_name", "individual_id", "plot_id"))
 
 # collect just to check and see dimensions
-wp_sorg |> collect()
+wp_quercus|> collect()
 
 # Plot water potential vs leaf area
-wp_sorg |> 
+wp_quercus |> 
+  collect() |>
+  drop_na(leaf_area_index_m2_m2) |> 
   ggplot(aes(x = leaf_area_index_m2_m2, y = water_potential_mean)) +
   geom_point() +
-  labs(title = "Sorghum Water Potential by Leaf Area",
+  labs(title = "Quercus Water Potential by Leaf Area",
        x = "Leaf Area (m2)",
        y = "Water Potential (MPa)") +
   theme_minimal()
@@ -191,16 +194,17 @@ wp_data_filtered <- wp_data |>
 
 # Visualize water potential patterns by time of day and species
 wp_data_filtered |>
-  ggplot(aes(x = genus, y = water_potential_mean, fill = time_of_day)) +
+  add_count(genus) |>
+  filter(n >= 500) |>  # Adjust threshold as needed
+  ggplot(aes(x = water_potential_mean, y = genus, fill = time_of_day)) +
   geom_boxplot() +
   labs(
     title = "Water Potential by Species and Time of Day",
-    x = "Genus",
-    y = "Water Potential (MPa)",
+    x = "Water Potential (MPa)",
+    y = "Genus",
     fill = "Time of Day"
   ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme_minimal()
 
 # Disconnect
 dbDisconnect(con, shutdown = TRUE)
@@ -267,6 +271,8 @@ study_timeline <- multi_table_data |>
   )
 
 study_timeline |>
+  # filter for reasonable subset
+  filter(study_duration >= 6 | begin_year >= 2020) |>
   ggplot(aes(x = begin_year, xend = end_year, 
              y = reorder(dataset_name, begin_year), yend = reorder(dataset_name, begin_year),
              color = latitude_group)) +
@@ -376,9 +382,43 @@ ts_data <- tbl(con, "chamber_wp") |>
   ) |>
   arrange(date_time)
 
-# Convert to time series object and analyze
-ts_wp <- ts(ts_data$water_potential_mean, frequency = 365)
-# Apply time series analysis methods...
+# Create a complete time series by aggregating to daily means
+daily_wp <- ts_data |>
+  mutate(date_only = as.Date(date_time)) |>
+  group_by(date_only) |>
+  summarize(
+    mean_wp = mean(water_potential_mean, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  ) |>
+  arrange(date_only)
+
+# Plot the time series
+ggplot(daily_wp, aes(x = date_only, y = mean_wp)) +
+  geom_line() +
+  geom_smooth(method = "loess", se = TRUE, color = "blue") +
+  labs(
+    title = "Daily Mean Water Potential Time Series",
+    x = "Date",
+    y = "Water Potential (MPa)"
+  ) +
+  theme_minimal()
+
+# Autocorrelation analysis
+acf_result <- acf(daily_wp$mean_wp, na.action = na.pass, plot = TRUE,
+                  main = "Autocorrelation of Water Potential")
+
+# Decompose the time series if there's enough data
+if (nrow(daily_wp) >= 365) {
+  # Create regular time series object
+  ts_wp <- ts(daily_wp$mean_wp, frequency = 365)
+  
+  # Decompose into trend, seasonal, and random components
+  decomp <- decompose(ts_wp, type = "additive")
+  
+  # Plot decomposition
+  plot(decomp, main = "Time Series Decomposition")
+}
 
 dbDisconnect(con, shutdown = TRUE)
 ```
