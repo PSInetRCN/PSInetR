@@ -32,6 +32,7 @@ PSInet fills a critical missing link between information about environmental dri
 - Choose between DuckDB database or CSV file formats
 - Authenticate with GitHub to access private data repositories
 - Check and validate local data files
+- Collate measurement data with complete metadata across multiple tables
 - Tools for analyzing and visualizing plant water potential data
 
 ### Data Characteristics
@@ -64,6 +65,8 @@ remotes::install_github("PSInetRCN/PSInetR")
 
 ## Usage
 
+### Downloading Data
+
 ```r
 library(PSInetR)
 
@@ -83,6 +86,45 @@ db_path <- get_db_path()
 get_psi_data(github_token = "your_token")
 # Or set in .Renviron: GITHUB_PAT=your_token
 ```
+
+### Collating Data with Metadata
+
+PSInetR provides four functions to join measurement data with complete metadata:
+
+```r
+# Collate meteorological data with site metadata
+met_data <- collate_met(db_path = "psinet.duckdb")
+
+# Collate pressure chamber water potential with all metadata
+chamber_data <- collate_chamber_wp(db_path = "psinet.duckdb")
+
+# Collate automated water potential with sensor metadata
+auto_data <- collate_auto_wp(db_path = "psinet.duckdb")
+
+# Collate soil data at three organizational levels
+soil_data <- collate_soil(db_path = "psinet.duckdb")
+individual_soil <- soil_data$individual
+plot_soil <- soil_data$plot
+study_soil <- soil_data$study
+
+# All functions support filtering to specific datasets
+chamber_subset <- collate_chamber_wp(
+  db_path = "psinet.duckdb",
+  dataset_name = c("Smith_1", "Jones_2")
+)
+
+# You can also pass a DBI connection instead of a path
+con <- DBI::dbConnect(duckdb::duckdb(), "psinet.duckdb")
+met_data <- collate_met(con = con)
+DBI::dbDisconnect(con, shutdown = TRUE)
+```
+
+These functions handle complex multi-table joins including:
+- Treatment hierarchy logic (individual, plot, and study-level treatments)
+- Timezone lookup for temporal data
+- SAPFLUXNET dataset flagging (for chamber and auto data)
+- Sensor deployment period filtering (for auto data)
+- Multi-level data organization (for soil data)
 
 ## Data Sources
 
