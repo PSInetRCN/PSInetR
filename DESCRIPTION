@@ -16,7 +16,10 @@ RoxygenNote: 7.3.2
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
-    rmarkdown
+    rmarkdown,
+    dbplyr,
+    ggplot2,
+    lubridate
 Config/testthat/edition: 3
 Imports:
     httr,
@@ -25,9 +28,6 @@ Imports:
     cli,
     covr,
     utils,
-    dbplyr,
     dplyr,
-    ggplot2,
-    lubridate,
     lutz
 VignetteBuilder: knitr
