@@ -16,16 +16,18 @@ RoxygenNote: 7.3.2
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
-    rmarkdown
+    rmarkdown,
+    dbplyr,
+    ggplot2,
+    lubridate
 Config/testthat/edition: 3
-Imports: 
+Imports:
     httr,
     DBI,
     duckdb,
     cli,
     covr,
     utils,
-    dbplyr,
-    ggplot2,
-    lubridate
+    dplyr,
+    lutz
 VignetteBuilder: knitr
