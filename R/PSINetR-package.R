@@ -12,6 +12,7 @@ utils::globalVariables(c(
   "plot_id",
   "individual_id",
   "sensor_id",
+  "sensor_location",
   "start_date",
   "end_date"
 ))

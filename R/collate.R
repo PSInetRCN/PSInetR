@@ -66,15 +66,20 @@ collate_met <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
   met_var <- dplyr::tbl(con, "met_var") |>
     dplyr::collect()
 
+  meta <- dplyr::tbl(con, "meta") |>
+    dplyr::collect()
+
   # Apply dataset filter if provided
   if (!is.null(dataset_name)) {
     site <- site |> dplyr::filter(.data$dataset_name %in% dataset_name)
     met_var <- met_var |> dplyr::filter(.data$dataset_name %in% dataset_name)
+    meta <- meta |> dplyr::filter(.data$dataset_name %in% dataset_name)
   }
 
   # Join tables and remove duplicates
   all_met <- site |>
     dplyr::inner_join(met_var, by = dplyr::join_by(dataset_name)) |>
+    dplyr::left_join(meta, by = dplyr::join_by(dataset_name)) |>
     dplyr::distinct()
 
   return(all_met)
@@ -189,6 +194,10 @@ collate_chamber_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) 
     dplyr::filter(.data$dataset_name %in% chamb_datasets) |>
     dplyr::collect()
 
+  meta <- dplyr::tbl(con, "meta") |>
+    dplyr::filter(.data$dataset_name %in% chamb_datasets) |>
+    dplyr::collect()
+
   # Determine SAPFLUXNET datasets
   sfn_datasets <- sfn |>
     dplyr::filter(!is.na(.data$pl_name)) |>
@@ -236,7 +245,8 @@ collate_chamber_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) 
         .default = FALSE
       )
     ) |>
-    dplyr::inner_join(all_chamber, by = dplyr::join_by(dataset_name))
+    dplyr::inner_join(all_chamber, by = dplyr::join_by(dataset_name)) |>
+    dplyr::left_join(meta, by = dplyr::join_by(dataset_name))
 
   return(all_chamber_joined)
 }
@@ -358,6 +368,10 @@ collate_auto_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
     dplyr::filter(.data$dataset_name %in% auto_datasets) |>
     dplyr::collect()
 
+  meta <- dplyr::tbl(con, "meta") |>
+    dplyr::filter(.data$dataset_name %in% auto_datasets) |>
+    dplyr::collect()
+
   # Determine SAPFLUXNET datasets
   sfn_datasets <- sfn |>
     dplyr::filter(!is.na(.data$pl_name) | !is.na(.data$pl_code)) |>
@@ -430,7 +444,8 @@ collate_auto_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
         dplyr::between(date, start_date, end_date, bounds = "[)")
       )
     ) |>
-    dplyr::filter(!is.na(.data$water_potential_mean))
+    dplyr::filter(!is.na(.data$water_potential_mean)) |>
+    dplyr::left_join(meta, by = dplyr::join_by(dataset_name))
 
   return(all_auto)
 }
@@ -530,6 +545,21 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
   soil_var <- dplyr::tbl(con, "soil_var") |>
     dplyr::collect()
 
+  meta <- dplyr::tbl(con, "meta") |>
+    dplyr::collect()
+
+  # Load data_description to get sensor_location for soil variables
+  data_desc <- dplyr::tbl(con, "data_description") |>
+    dplyr::collect() |>
+    dplyr::filter(
+      .data$data_variable %in% c(
+        "Soil water content",
+        "Soil water potential"
+      )
+    ) |>
+    dplyr::select("dataset_name", "sensor_location") |>
+    dplyr::distinct()
+
   # Apply dataset filter if provided
   if (!is.null(dataset_name)) {
     site <- site |> dplyr::filter(.data$dataset_name %in% dataset_name)
@@ -537,7 +567,17 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
     plt <- plt |> dplyr::filter(.data$dataset_name %in% dataset_name)
     plant <- plant |> dplyr::filter(.data$dataset_name %in% dataset_name)
     soil_var <- soil_var |> dplyr::filter(.data$dataset_name %in% dataset_name)
+    meta <- meta |> dplyr::filter(.data$dataset_name %in% dataset_name)
+    data_desc <- data_desc |> dplyr::filter(.data$dataset_name %in% dataset_name)
   }
+
+  # Join sensor_location onto soil_var to categorize datasets
+  soil_var <- soil_var |>
+    dplyr::left_join(data_desc, by = dplyr::join_by(dataset_name)) |>
+    dplyr::filter(dplyr::if_any(
+      dplyr::any_of(c("swc_mean_shallow", "swc_mean_deep", "swp_mean_shallow", "swp_mean_deep")),
+      ~ !is.na(.x)
+    ))
 
   # --- Individual Level ---
   # Metadata for individual level (site/trt/plt/plant)
@@ -558,19 +598,16 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
     ) |>
     dplyr::full_join(site, by = dplyr::join_by(dataset_name))
 
-  # Soil data for individuals
+  # Soil data for individuals (sensor_location == "Individual")
   soil_ind <- soil_var |>
-    dplyr::filter(!is.na(.data$individual_id)) |>
-    dplyr::filter(dplyr::if_any(
-      dplyr::any_of(c("swc_mean_shallow", "swc_mean_deep", "swp_mean_shallow", "swp_mean_deep")),
-      ~ !is.na(.x)
-    ))
+    dplyr::filter(.data$sensor_location == "Individual")
 
   all_soil_ind <- meta_4_6 |>
     dplyr::inner_join(
       soil_ind,
       by = dplyr::join_by(dataset_name, plot_id, individual_id)
-    )
+    ) |>
+    dplyr::left_join(meta, by = dplyr::join_by(dataset_name))
 
   # --- Plot Level ---
   # Metadata for plot level (site/trt/plt)
@@ -582,29 +619,22 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
     ) |>
     dplyr::full_join(site, by = dplyr::join_by(dataset_name))
 
-  # Soil data for plots
+  # Soil data for plots (sensor_location == "Plot")
   soil_plt <- soil_var |>
-    dplyr::filter(is.na(.data$individual_id)) |>
-    dplyr::filter(.data$plot_id != "Whole study") |>
-    dplyr::filter(dplyr::if_any(
-      dplyr::any_of(c("swc_mean_shallow", "swc_mean_deep", "swp_mean_shallow", "swp_mean_deep")),
-      ~ !is.na(.x)
-    ))
+    dplyr::filter(.data$sensor_location == "Plot")
 
   all_soil_plt <- meta_4_5 |>
-    dplyr::inner_join(soil_plt, by = dplyr::join_by(dataset_name, plot_id))
+    dplyr::inner_join(soil_plt, by = dplyr::join_by(dataset_name, plot_id)) |>
+    dplyr::left_join(meta, by = dplyr::join_by(dataset_name))
 
   # --- Whole Study Level ---
+  # Soil data for whole study (sensor_location == "Whole study")
   soil_study <- soil_var |>
-    dplyr::filter(is.na(.data$individual_id)) |>
-    dplyr::filter(.data$plot_id == "Whole study") |>
-    dplyr::filter(dplyr::if_any(
-      dplyr::any_of(c("swc_mean_shallow", "swc_mean_deep", "swp_mean_shallow", "swp_mean_deep")),
-      ~ !is.na(.x)
-    ))
+    dplyr::filter(.data$sensor_location == "Whole study")
 
   all_soil_study <- site |>
-    dplyr::inner_join(soil_study, by = dplyr::join_by(dataset_name))
+    dplyr::inner_join(soil_study, by = dplyr::join_by(dataset_name)) |>
+    dplyr::left_join(meta, by = dplyr::join_by(dataset_name))
 
   # Return named list
   return(list(

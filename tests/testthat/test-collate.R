@@ -84,7 +84,7 @@ test_that("collate functions don't close provided connections", {
 })
 
 # Test return structures
-test_that("collate_met returns a data frame", {
+test_that("collate_met returns a data frame with meta columns", {
   skip_if_not(file.exists(get_db_path()), message = "Database not found")
 
   result <- collate_met(db_path = get_db_path())
@@ -93,9 +93,11 @@ test_that("collate_met returns a data frame", {
   expect_true(nrow(result) > 0)
   expect_true("dataset_name" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
+  # Meta table columns should be present via left join
+  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_chamber_wp returns a data frame with SFN column", {
+test_that("collate_chamber_wp returns a data frame with SFN and meta columns", {
   skip_if_not(file.exists(get_db_path()), message = "Database not found")
 
   result <- collate_chamber_wp(db_path = get_db_path())
@@ -105,9 +107,11 @@ test_that("collate_chamber_wp returns a data frame with SFN column", {
   expect_true("SFN" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
   expect_type(result$SFN, "logical")
+  # Meta table columns should be present via left join
+  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_auto_wp returns a data frame with SFN column", {
+test_that("collate_auto_wp returns a data frame with SFN and meta columns", {
   skip_if_not(file.exists(get_db_path()), message = "Database not found")
 
   result <- collate_auto_wp(db_path = get_db_path())
@@ -118,9 +122,11 @@ test_that("collate_auto_wp returns a data frame with SFN column", {
   expect_true("sensor_id" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
   expect_type(result$SFN, "logical")
+  # Meta table columns should be present via left join
+  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_soil returns a named list with three data frames", {
+test_that("collate_soil returns a named list with three data frames and meta columns", {
   skip_if_not(file.exists(get_db_path()), message = "Database not found")
 
   result <- collate_soil(db_path = get_db_path())
@@ -140,6 +146,25 @@ test_that("collate_soil returns a named list with three data frames", {
   expect_true("timezone" %in% colnames(result$individual))
   expect_true("timezone" %in% colnames(result$plot))
   expect_true("timezone" %in% colnames(result$study))
+
+  # All should have sensor_location from data_description
+  expect_true("sensor_location" %in% colnames(result$individual))
+  expect_true("sensor_location" %in% colnames(result$plot))
+  expect_true("sensor_location" %in% colnames(result$study))
+
+  # Verify sensor_location values match the expected level
+  if (nrow(result$individual) > 0) {
+    expect_true(all(result$individual$sensor_location == "Individual"))
+    expect_true("submitting_author_first_name" %in% colnames(result$individual))
+  }
+  if (nrow(result$plot) > 0) {
+    expect_true(all(result$plot$sensor_location == "Plot"))
+    expect_true("submitting_author_first_name" %in% colnames(result$plot))
+  }
+  if (nrow(result$study) > 0) {
+    expect_true(all(result$study$sensor_location == "Whole study"))
+    expect_true("submitting_author_first_name" %in% colnames(result$study))
+  }
 })
 
 # Test dataset filtering
