@@ -441,4 +441,4 @@ For more advanced database operations and performance optimization, see the "Wor
 - Hydraulic model parameterization
 - Ecosystem-scale water cycling studies
 
-Remember to cite the appropriate data contributors when using PSInet data in your research. Dataset attribution information can be found in the `study_site` table.
+Remember to cite the appropriate data contributors when using PSInet data in your research. Dataset attribution information, including author names and ORCID IDs, can be found in the `meta` table, which joins to other tables via `dataset_name`.

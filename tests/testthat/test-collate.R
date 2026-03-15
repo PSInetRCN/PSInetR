@@ -54,24 +54,23 @@ test_that("collate functions error with non-existent database path", {
 
 # Test connection management
 test_that("collate functions close connections they open", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
-  # Record open connections before
-  before_count <- length(DBI::dbListConnections(duckdb::duckdb()))
+  # Run function with db_path (it should open and close its own connection)
+  # If the function doesn't clean up, subsequent connections would fail or leak
+  result <- collate_met(db_path = get_db_path(dir = test_path("../..")))
 
-  # Run function with db_path (it should open and close)
-  result <- collate_met(db_path = get_db_path())
-
-  # Check connection count returned to baseline
-  after_count <- length(DBI::dbListConnections(duckdb::duckdb()))
-  expect_equal(before_count, after_count)
+  # Verify we can still open a new connection (no leaked locks)
+  con <- DBI::dbConnect(duckdb::duckdb(), get_db_path(dir = test_path("../..")))
+  expect_true(DBI::dbIsValid(con))
+  DBI::dbDisconnect(con, shutdown = TRUE)
 })
 
 test_that("collate functions don't close provided connections", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   # Create a connection
-  con <- DBI::dbConnect(duckdb::duckdb(), get_db_path())
+  con <- DBI::dbConnect(duckdb::duckdb(), get_db_path(dir = test_path("../..")))
 
   # Use the connection
   result <- collate_met(con = con)
@@ -84,33 +83,37 @@ test_that("collate functions don't close provided connections", {
 })
 
 # Test return structures
-test_that("collate_met returns a data frame", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+test_that("collate_met returns a data frame with meta columns", {
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
-  result <- collate_met(db_path = get_db_path())
+  result <- collate_met(db_path = get_db_path(dir = test_path("../..")))
 
   expect_s3_class(result, "data.frame")
   expect_true(nrow(result) > 0)
   expect_true("dataset_name" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
+  # Meta table columns should be present via left join
+  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_chamber_wp returns a data frame with SFN column", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+test_that("collate_chamber_wp returns a data frame with SFN and meta columns", {
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
-  result <- collate_chamber_wp(db_path = get_db_path())
+  result <- collate_chamber_wp(db_path = get_db_path(dir = test_path("../..")))
 
   expect_s3_class(result, "data.frame")
   expect_true("dataset_name" %in% colnames(result))
   expect_true("SFN" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
   expect_type(result$SFN, "logical")
+  # Meta table columns should be present via left join
+  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_auto_wp returns a data frame with SFN column", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+test_that("collate_auto_wp returns a data frame with SFN and meta columns", {
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
-  result <- collate_auto_wp(db_path = get_db_path())
+  result <- collate_auto_wp(db_path = get_db_path(dir = test_path("../..")))
 
   expect_s3_class(result, "data.frame")
   expect_true("dataset_name" %in% colnames(result))
@@ -118,12 +121,14 @@ test_that("collate_auto_wp returns a data frame with SFN column", {
   expect_true("sensor_id" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
   expect_type(result$SFN, "logical")
+  # Meta table columns should be present via left join
+  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_soil returns a named list with three data frames", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+test_that("collate_soil returns a named list with three data frames and meta columns", {
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
-  result <- collate_soil(db_path = get_db_path())
+  result <- collate_soil(db_path = get_db_path(dir = test_path("../..")))
 
   expect_type(result, "list")
   expect_named(result, c("individual", "plot", "study"))
@@ -140,20 +145,39 @@ test_that("collate_soil returns a named list with three data frames", {
   expect_true("timezone" %in% colnames(result$individual))
   expect_true("timezone" %in% colnames(result$plot))
   expect_true("timezone" %in% colnames(result$study))
+
+  # All should have sensor_location from data_description
+  expect_true("sensor_location" %in% colnames(result$individual))
+  expect_true("sensor_location" %in% colnames(result$plot))
+  expect_true("sensor_location" %in% colnames(result$study))
+
+  # Verify sensor_location values match the expected level
+  if (nrow(result$individual) > 0) {
+    expect_true(all(result$individual$sensor_location == "Individual"))
+    expect_true("submitting_author_first_name" %in% colnames(result$individual))
+  }
+  if (nrow(result$plot) > 0) {
+    expect_true(all(result$plot$sensor_location == "Plot"))
+    expect_true("submitting_author_first_name" %in% colnames(result$plot))
+  }
+  if (nrow(result$study) > 0) {
+    expect_true(all(result$study$sensor_location == "Whole study"))
+    expect_true("submitting_author_first_name" %in% colnames(result$study))
+  }
 })
 
 # Test dataset filtering
 test_that("dataset_name parameter filters collate_met results", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   # Get full results
-  full_result <- collate_met(db_path = get_db_path())
+  full_result <- collate_met(db_path = get_db_path(dir = test_path("../..")))
 
   # Get filtered results (pick first dataset)
   if (nrow(full_result) > 0) {
     test_dataset <- full_result$dataset_name[1]
     filtered_result <- collate_met(
-      db_path = get_db_path(),
+      db_path = get_db_path(dir = test_path("../..")),
       dataset_name = test_dataset
     )
 
@@ -164,16 +188,16 @@ test_that("dataset_name parameter filters collate_met results", {
 })
 
 test_that("dataset_name parameter filters collate_chamber_wp results", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   # Get full results
-  full_result <- collate_chamber_wp(db_path = get_db_path())
+  full_result <- collate_chamber_wp(db_path = get_db_path(dir = test_path("../..")))
 
   # Get filtered results (pick first dataset if available)
   if (nrow(full_result) > 0) {
     test_dataset <- full_result$dataset_name[1]
     filtered_result <- collate_chamber_wp(
-      db_path = get_db_path(),
+      db_path = get_db_path(dir = test_path("../..")),
       dataset_name = test_dataset
     )
 
@@ -184,16 +208,16 @@ test_that("dataset_name parameter filters collate_chamber_wp results", {
 })
 
 test_that("dataset_name parameter filters collate_auto_wp results", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   # Get full results
-  full_result <- collate_auto_wp(db_path = get_db_path())
+  full_result <- collate_auto_wp(db_path = get_db_path(dir = test_path("../..")))
 
   # Get filtered results (pick first dataset if available)
   if (nrow(full_result) > 0) {
     test_dataset <- full_result$dataset_name[1]
     filtered_result <- collate_auto_wp(
-      db_path = get_db_path(),
+      db_path = get_db_path(dir = test_path("../..")),
       dataset_name = test_dataset
     )
 
@@ -204,16 +228,16 @@ test_that("dataset_name parameter filters collate_auto_wp results", {
 })
 
 test_that("dataset_name parameter filters collate_soil results", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   # Get full results
-  full_result <- collate_soil(db_path = get_db_path())
+  full_result <- collate_soil(db_path = get_db_path(dir = test_path("../..")))
 
   # Test filtering on individual level if data exists
   if (nrow(full_result$individual) > 0) {
     test_dataset <- full_result$individual$dataset_name[1]
     filtered_result <- collate_soil(
-      db_path = get_db_path(),
+      db_path = get_db_path(dir = test_path("../..")),
       dataset_name = test_dataset
     )
 
@@ -232,9 +256,9 @@ test_that("dataset_name parameter filters collate_soil results", {
 
 # Test that auto_wp filters NA values
 test_that("collate_auto_wp filters NA water potential values", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
-  result <- collate_auto_wp(db_path = get_db_path())
+  result <- collate_auto_wp(db_path = get_db_path(dir = test_path("../..")))
 
   if (nrow(result) > 0 && "water_potential_mean" %in% colnames(result)) {
     # All water_potential_mean values should be non-NA
@@ -244,9 +268,9 @@ test_that("collate_auto_wp filters NA water potential values", {
 
 # Test that auto_wp filters plants without sensor_id
 test_that("collate_auto_wp only includes plants with sensor_id", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
-  result <- collate_auto_wp(db_path = get_db_path())
+  result <- collate_auto_wp(db_path = get_db_path(dir = test_path("../..")))
 
   if (nrow(result) > 0 && "sensor_id" %in% colnames(result)) {
     # All sensor_id values should be non-NA
@@ -256,9 +280,9 @@ test_that("collate_auto_wp only includes plants with sensor_id", {
 
 # Test that soil filters rows without any soil values
 test_that("collate_soil filters rows without soil measurements", {
-  skip_if_not(file.exists(get_db_path()), message = "Database not found")
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
-  result <- collate_soil(db_path = get_db_path())
+  result <- collate_soil(db_path = get_db_path(dir = test_path("../..")))
 
   soil_cols <- c("swc_mean_shallow", "swc_mean_deep", "swp_mean_shallow", "swp_mean_deep")
 

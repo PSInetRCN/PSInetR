@@ -65,6 +65,8 @@ The PSInet database follows a hierarchical structure that organizes water potent
 
 6. **plant**: Stores data about individual plants or groups of plants, including species information, size measurements, and plant social status.
 
+7. **meta**: Contains authorship metadata for each dataset, including submitting and corresponding author names and ORCID IDs. Joins to other tables via `dataset_name`. Note that some datasets (~26 of 268) do not yet have meta entries.
+
 
 ### Measurement Tables
 
@@ -102,6 +104,8 @@ study_site → plot → plant → water potential measurements
      → met_var (meteorological variables)
      → treatment (experimental treatments)
      → addtl_data (additional data links)
+
+meta → (joins to any table via dataset_name — authorship metadata)
 ```
 
 *Note: Soil measurements (`soil_var`) can be associated with either plots (including whole study sites) or individual plants, depending on the measurement approach used by each research group.
