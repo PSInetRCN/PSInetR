@@ -74,12 +74,12 @@ collate_met <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
   met_var <- dplyr::tbl(con, "met_var")
   site_tz <- dplyr::tbl(con, "site_tz_tmp")
 
-  # Columns in study_site that overlap with meta (excluding join key)
+  # Columns in study_site that overlap with authorship (excluding join key)
   site_cols <- dplyr::tbl(con, "study_site") |> head(0) |> dplyr::collect() |> colnames()
-  meta_cols <- dplyr::tbl(con, "meta")      |> head(0) |> dplyr::collect() |> colnames()
+  meta_cols <- dplyr::tbl(con, "authorship") |> head(0) |> dplyr::collect() |> colnames()
   meta_drop <- setdiff(intersect(site_cols, meta_cols), "dataset_name")
 
-  meta <- dplyr::tbl(con, "meta") |>
+  meta <- dplyr::tbl(con, "authorship") |>
     dplyr::select(!dplyr::any_of(meta_drop))
 
   # Apply dataset filter inside the DB if provided
@@ -210,9 +210,9 @@ collate_chamber_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) 
     dplyr::filter(.data$dataset_name %in% chamb_datasets) |>
     dplyr::collect()
 
-  # Drop columns from meta that already exist in study_site
+  # Drop columns from authorship that already exist in study_site
   site_cols <- colnames(site)
-  meta <- dplyr::tbl(con, "meta") |>
+  meta <- dplyr::tbl(con, "authorship") |>
     dplyr::filter(.data$dataset_name %in% chamb_datasets) |>
     dplyr::collect() |>
     dplyr::select(!dplyr::any_of(setdiff(site_cols, "dataset_name")))
@@ -387,9 +387,9 @@ collate_auto_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
     dplyr::filter(.data$dataset_name %in% auto_datasets) |>
     dplyr::collect()
 
-  # Drop columns from meta that already exist in study_site
+  # Drop columns from authorship that already exist in study_site
   site_cols <- colnames(site)
-  meta <- dplyr::tbl(con, "meta") |>
+  meta <- dplyr::tbl(con, "authorship") |>
     dplyr::filter(.data$dataset_name %in% auto_datasets) |>
     dplyr::collect() |>
     dplyr::select(!dplyr::any_of(setdiff(site_cols, "dataset_name")))
@@ -580,9 +580,9 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
     dplyr::filter(.data$dataset_name %in% site_datasets) |>
     dplyr::collect()
 
-  # Drop columns from meta that already exist in study_site
+  # Drop columns from authorship that already exist in study_site
   site_cols <- colnames(site)
-  meta <- dplyr::tbl(con, "meta") |>
+  meta <- dplyr::tbl(con, "authorship") |>
     dplyr::filter(.data$dataset_name %in% site_datasets) |>
     dplyr::select(!dplyr::any_of(setdiff(site_cols, "dataset_name"))) |>
     dplyr::collect()

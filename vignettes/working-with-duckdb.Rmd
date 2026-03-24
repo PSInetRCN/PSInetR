@@ -79,7 +79,7 @@ Most studies measured water potential repeatedly at a single location, but some 
 
 ### Database Organization
 
-The PSInet database is organized around **7 core tables** containing information about data collection, experimental design, and authorship, and **5 measurement tables** containing the actual measurements. Additionally, one core and each measurement table has an associated **quality control flag table**, and there is a table of SAPFLUXNET IDs for cross-compatibility. The `meta` table provides authorship metadata (author names and ORCID IDs) for each dataset, joining via `dataset_name`.
+The PSInet database is organized around **7 core tables** containing information about data collection, experimental design, and authorship, and **5 measurement tables** containing the actual measurements. Additionally, one core and each measurement table has an associated **quality control flag table**, and there is a table of SAPFLUXNET IDs for cross-compatibility. The `authorship` table provides authorship metadata (author names and ORCID IDs) for each dataset, joining via `dataset_name`.
 
 #### Core Tables
 
@@ -139,7 +139,7 @@ chamber_wp_fields <- dbListFields(con, "chamber_wp")
 print(chamber_wp_fields)
 
 # Check the dimensions of core tables
-core_tables <- c("study_site", "plot", "plant", "treatment", "data_description", "addtl_data", "meta")
+core_tables <- c("study_site", "plot", "plant", "treatment", "data_description", "addtl_data", "authorship")
 for(table in core_tables) {
   count <- dbGetQuery(con, paste("SELECT COUNT(*) as count FROM", table))
   cat(table, ":", count$count, "records\n")
