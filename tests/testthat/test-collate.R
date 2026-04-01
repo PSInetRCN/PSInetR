@@ -153,11 +153,11 @@ test_that("collate_soil returns a named list with three data frames and meta col
 
   # Verify sensor_location values match the expected level
   if (nrow(result$individual) > 0) {
-    expect_true(all(result$individual$sensor_location == "Individual"))
+    expect_true(all(result$individual$sensor_location == "individual"))
     expect_true("submitting_author_first_name" %in% colnames(result$individual))
   }
   if (nrow(result$plot) > 0) {
-    expect_true(all(result$plot$sensor_location == "Plot"))
+    expect_true(all(result$plot$sensor_location == "plot"))
     expect_true("submitting_author_first_name" %in% colnames(result$plot))
   }
   if (nrow(result$study) > 0) {

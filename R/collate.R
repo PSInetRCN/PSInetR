@@ -589,13 +589,13 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
 
   # Load data_description to get sensor_location for soil variables
   data_desc <- dplyr::tbl(con, "data_description") |>
+    dplyr::filter(.data$dataset_name %in% site_datasets) |>
+    dplyr::collect() |>
     dplyr::filter(
-      .data$dataset_name %in% site_datasets &
-        .data$data_variable %in% c("Soil water content", "Soil water potential")
+      grepl("Soil water content|Soil water potential", .data$data_variable, ignore.case = TRUE)
     ) |>
     dplyr::select("dataset_name", "sensor_location") |>
-    dplyr::distinct() |>
-    dplyr::collect()
+    dplyr::distinct()
 
   # Join sensor_location onto soil_var to categorize datasets
   soil_var <- soil_var |>
@@ -624,9 +624,9 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
     ) |>
     dplyr::full_join(site, by = dplyr::join_by(dataset_name))
 
-  # Soil data for individuals (sensor_location == "Individual")
+  # Soil data for individuals (sensor_location == "individual")
   soil_ind <- soil_var |>
-    dplyr::filter(.data$sensor_location == "Individual")
+    dplyr::filter(.data$sensor_location == "individual")
 
   all_soil_ind <- meta_4_6 |>
     dplyr::inner_join(
@@ -645,9 +645,9 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
     ) |>
     dplyr::full_join(site, by = dplyr::join_by(dataset_name))
 
-  # Soil data for plots (sensor_location == "Plot")
+  # Soil data for plots (sensor_location == "plot")
   soil_plt <- soil_var |>
-    dplyr::filter(.data$sensor_location == "Plot")
+    dplyr::filter(.data$sensor_location == "plot")
 
   all_soil_plt <- meta_4_5 |>
     dplyr::inner_join(soil_plt, by = dplyr::join_by(dataset_name, plot_id)) |>
