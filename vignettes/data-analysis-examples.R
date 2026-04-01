@@ -1,0 +1,379 @@
+## ----include = FALSE----------------------------------------------------------
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE  # Set to FALSE since we don't have actual data during package build
+)
+
+
+## ----setup--------------------------------------------------------------------
+library(PSInetR)
+library(DBI)
+library(duckdb)
+library(dplyr)
+library(dbplyr)
+library(ggplot2)
+library(lubridate)
+library(tidyr)
+
+
+## ----basic-exploration--------------------------------------------------------
+# Connect to the DuckDB database
+db_path <- get_db_path()
+con <- dbConnect(duckdb::duckdb(), db_path)
+
+# List available tables
+dbListTables(con)
+
+# Preview the study sites
+study_sites <- tbl(con, "study_site") |>
+  collect()
+head(study_sites)
+
+# Count plants by species
+species_counts <- tbl(con, "plant") |>
+  group_by(genus, specific_epithet) |>
+  summarize(plant_count = n()) |>
+  arrange(desc(plant_count)) |>
+  collect()
+head(species_counts)
+
+# Don't forget to disconnect
+dbDisconnect(con, shutdown = TRUE)
+
+
+## ----water-potential----------------------------------------------------------
+# Connect to the database
+db_path <- get_db_path()
+con <- dbConnect(duckdb::duckdb(), db_path)
+
+# Get water potential data for a specific plant - Quercus alba
+quercus_ids <- tbl(con, "plant") |> 
+  filter(genus == "Quercus") 
+
+# right join by filtered dataset above
+wp_quercus <- tbl(con, "chamber_wp") |> 
+  right_join(quercus_ids, by = c("dataset_name", "individual_id", "plot_id"))
+
+# collect just to check and see dimensions
+wp_quercus|> collect()
+
+# Plot water potential vs leaf area
+wp_quercus |> 
+  collect() |>
+  drop_na(leaf_area_index_m2_m2) |> 
+  ggplot(aes(x = leaf_area_index_m2_m2, y = water_potential_mean)) +
+  geom_point() +
+  labs(title = "Quercus Water Potential by Leaf Area",
+       x = "Leaf Area (m2)",
+       y = "Water Potential (MPa)") +
+  theme_minimal()
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+
+
+## ----combined-analysis--------------------------------------------------------
+# Connect to the database
+db_path <- get_db_path()
+con <- dbConnect(duckdb::duckdb(), db_path)
+
+# Get plants, water potential, and environmental data for a study site
+study <- "Ben_1"
+
+# Get water potential data
+wp_data <- tbl(con, "chamber_wp") |>
+  filter(dataset_name == study) |>
+  collect()
+
+# Get meteorological data
+met_data <- tbl(con, "met_var") |>
+  filter(dataset_name == study) |>
+  collect()
+
+# Join water potential and VPD data by date and time
+combined_data <- wp_data |>
+  inner_join(met_data, by = c("dataset_name", "date", "time")) |>
+  select(date, water_potential_mean, vapor_pressure_deficit_k_pa, 
+         air_temperature_c, precipitation_mm)
+
+# Plot water potential vs. VPD
+combined_data |>
+  ggplot(aes(x = vapor_pressure_deficit_k_pa, y = water_potential_mean)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Plant Water Potential vs. Vapor Pressure Deficit",
+       x = "VPD (kPa)",
+       y = "Water Potential (MPa)") +
+  theme_minimal()
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+
+
+## ----time-analysis------------------------------------------------------------
+# Connect to the database
+db_path <- get_db_path()
+con <- dbConnect(duckdb::duckdb(), db_path)
+
+# Get predawn and midday water potential measurements
+wp_data <- tbl(con, "chamber_wp") |>
+  filter(
+    organ == "stem" | organ == "leaf",
+    !is.na(water_potential_mean)
+  ) |>
+  left_join(
+    tbl(con, "plant"),
+    by = c("dataset_name", "individual_id")
+  ) |>
+  collect()
+
+# Create time of day category based on time values
+# The time column appears to contain seconds since midnight
+# Convert to hours for easier categorization
+wp_data_filtered <- wp_data |>
+  mutate(
+    # Convert character time to numeric seconds, then to hours
+    time_numeric = seconds(hms(time)),
+    hour_decimal = time_numeric / 3600,  # Convert seconds to hours
+    hour = floor(hour_decimal),          # Extract integer hour
+    minute = round((hour_decimal - hour) * 60), # Extract minutes
+    
+    # Categorize based on typical measurement times
+    # NOTE: Adjust these ranges based on your specific measurement protocols
+    time_of_day = case_when(
+      hour >= 4 & hour <= 7 ~ "Predawn",    # 4:00 AM to 7:59 AM
+      hour >= 11 & hour <= 14 ~ "Midday",   # 11:00 AM to 2:59 PM
+      TRUE ~ "Other"
+    )
+  ) |>
+  filter(time_of_day %in% c("Predawn", "Midday"))
+
+# Alternative approach if you want to see what times are actually present:
+# wp_data |>
+#   mutate(
+#     time_numeric = seconds(hms(time)),
+#     hour_decimal = time_numeric / 3600,
+#     hour = floor(hour_decimal),
+#     minute = round((hour_decimal - hour) * 60),
+#     clock_time = sprintf("%02d:%02d", hour, minute)
+#   ) |>
+#   count(clock_time, sort = TRUE) |>
+#   head(20)  # This will show you the most common measurement times
+
+# Visualize water potential patterns by time of day and species
+wp_data_filtered |>
+  add_count(genus) |>
+  filter(n >= 500) |>  # Adjust threshold as needed
+  ggplot(aes(x = water_potential_mean, y = genus, fill = time_of_day)) +
+  geom_boxplot() +
+  labs(
+    title = "Water Potential by Species and Time of Day",
+    x = "Water Potential (MPa)",
+    y = "Genus",
+    fill = "Time of Day"
+  ) +
+  theme_minimal()
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+
+
+## ----multi-table--------------------------------------------------------------
+# Connect to the database
+db_path <- get_db_path()
+con <- dbConnect(duckdb::duckdb(), db_path)
+
+# Simple multi-table join: water potential + plant species + study sites
+multi_table_data <- tbl(con, "chamber_wp") |>
+  # Join with plant table to get species information
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id")) |>
+  # Join with study site table to get location information  
+  inner_join(tbl(con, "study_site"), by = "dataset_name") |>
+  # Filter for good quality data
+  filter(!is.na(water_potential_mean), !is.na(genus)) |>
+  # Select key columns
+  select(dataset_name, genus, specific_epithet, water_potential_mean, 
+         organ, latitude_wgs84, begin_year, end_year) |>
+  collect()
+
+# Summarize by genus across different studies
+genus_summary <- multi_table_data |>
+  group_by(genus) |>
+  summarize(
+    mean_wp = mean(water_potential_mean, na.rm = TRUE),
+    n_measurements = n(),
+    n_studies = n_distinct(dataset_name),
+    .groups = "drop"
+  ) |>
+  # Focus on genera with data from multiple studies
+  filter(n_studies >= 2, n_measurements >= 20) |>
+  arrange(mean_wp)
+
+# Plot 1: Water potential by genus (for genera in multiple studies)
+genus_summary |>
+  ggplot(aes(x = reorder(genus, mean_wp), y = mean_wp)) +
+  geom_col(fill = "steelblue", alpha = 0.7) +
+  geom_text(aes(label = paste0("n=", n_measurements)), 
+            hjust = -0.1, size = 3) +
+  coord_flip() +
+  labs(
+    title = "Mean Water Potential by Genus",
+    subtitle = "Genera with data from multiple studies (≥20 measurements)",
+    x = "Genus",
+    y = "Mean Water Potential (MPa)"
+  ) +
+  theme_minimal()
+
+# Plot 2: Study timeline showing data collection periods
+study_timeline <- multi_table_data |>
+  select(dataset_name, begin_year, end_year, latitude_wgs84) |>
+  distinct() |>
+  filter(!is.na(begin_year), !is.na(end_year)) |>
+  mutate(
+    study_duration = end_year - begin_year + 1,
+    latitude_group = ifelse(latitude_wgs84 >= 35, "Northern", "Southern")
+  )
+
+study_timeline |>
+  # filter for reasonable subset
+  filter(study_duration >= 6 | begin_year >= 2020) |>
+  ggplot(aes(x = begin_year, xend = end_year, 
+             y = reorder(dataset_name, begin_year), yend = reorder(dataset_name, begin_year),
+             color = latitude_group)) +
+  geom_segment(linewidth = 2, alpha = 0.7) +
+  geom_point(aes(x = begin_year), size = 0.5) +
+  geom_point(aes(x = end_year), size = 0.5) +
+  labs(
+    title = "Study Timeline and Geographic Distribution",
+    x = "Year",
+    y = "Study",
+    color = "Region"
+  ) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+
+# Print summary
+cat("Multi-table join results:\n")
+cat("Total water potential measurements:", nrow(multi_table_data), "\n") 
+cat("Number of genera:", length(unique(multi_table_data$genus)), "\n")
+cat("Number of studies:", length(unique(multi_table_data$dataset_name)), "\n")
+cat("Year range:", min(multi_table_data$begin_year, na.rm = TRUE), "-", 
+    max(multi_table_data$end_year, na.rm = TRUE), "\n")
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+
+
+## ----seasonal-----------------------------------------------------------------
+# Connect to the database
+db_path <- get_db_path()
+con <- dbConnect(duckdb::duckdb(), db_path)
+
+# Extract seasonal patterns
+seasonal_data <- tbl(con, "chamber_wp") |>
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id")) |>
+  filter(!is.na(water_potential_mean)) |>
+  collect() |>
+  mutate(
+    # Extract date components
+    year = year(date),
+    month = month(date),
+    day = day(date),
+    # Create day of year
+    date_parsed = as.Date(paste(year, month, day, sep = "-")),
+    day_of_year = as.numeric(format(date_parsed, "%j"))
+  ) |>
+  filter(!is.na(day_of_year))
+
+# Plot seasonal patterns - this plots a lot of data and takes a while
+seasonal_data |>
+  ggplot(aes(x = day_of_year, y = water_potential_mean)) +
+  geom_hex() + 
+  # geom_smooth(method = "loess", se = TRUE) +
+  # facet_wrap(~genus, scales = "free_y") + # could also facet by genus
+  labs(
+    title = "Seasonal Patterns in Water Potential",
+    x = "Day of Year",
+    y = "Water Potential (MPa)"
+  ) +
+  theme_minimal()
+
+# Disconnect
+dbDisconnect(con, shutdown = TRUE)
+
+
+## ----spatial, eval=FALSE------------------------------------------------------
+# # If you have spatial analysis needs
+# library(sf)
+# 
+# # Connect to database
+# con <- dbConnect(duckdb::duckdb(), get_db_path())
+# 
+# # Get study site locations
+# site_locations <- tbl(con, "study_site") |>
+#   filter(!is.na(latitude_wgs84), !is.na(longitude_wgs84)) |>
+#   collect() |>
+#   st_as_sf(coords = c("longitude_wgs84", "latitude_wgs84"), crs = 4326)
+# 
+# # Now you can use spatial analysis functions
+# dbDisconnect(con, shutdown = TRUE)
+
+
+## ----timeseries, eval=FALSE---------------------------------------------------
+# # For time series analysis
+# library(lubridate)
+# library(forecast)
+# 
+# con <- dbConnect(duckdb::duckdb(), get_db_path())
+# 
+# # Get time series data for a specific site/species
+# ts_data <- tbl(con, "chamber_wp") |>
+#   inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id")) |>
+#   filter(dataset_name == "Ada_1", genus == "Thuja") |>
+#   collect() |>
+#   mutate(
+#     date_time = ymd(date) + seconds(hms(time))
+#   ) |>
+#   arrange(date_time)
+# 
+# # Create a complete time series by aggregating to daily means
+# daily_wp <- ts_data |>
+#   mutate(date_only = as.Date(date_time)) |>
+#   group_by(date_only) |>
+#   summarize(
+#     mean_wp = mean(water_potential_mean, na.rm = TRUE),
+#     n_obs = n(),
+#     .groups = "drop"
+#   ) |>
+#   arrange(date_only)
+# 
+# # Plot the time series
+# ggplot(daily_wp, aes(x = date_only, y = mean_wp)) +
+#   geom_line() +
+#   geom_smooth(method = "loess", se = TRUE, color = "blue") +
+#   labs(
+#     title = "Daily Mean Water Potential Time Series",
+#     x = "Date",
+#     y = "Water Potential (MPa)"
+#   ) +
+#   theme_minimal()
+# 
+# # Autocorrelation analysis
+# acf_result <- acf(daily_wp$mean_wp, na.action = na.pass, plot = TRUE,
+#                   main = "Autocorrelation of Water Potential")
+# 
+# # Decompose the time series if there's enough data
+# if (nrow(daily_wp) >= 365) {
+#   # Create regular time series object
+#   ts_wp <- ts(daily_wp$mean_wp, frequency = 365)
+# 
+#   # Decompose into trend, seasonal, and random components
+#   decomp <- decompose(ts_wp, type = "additive")
+# 
+#   # Plot decomposition
+#   plot(decomp, main = "Time Series Decomposition")
+# }
+# 
+# dbDisconnect(con, shutdown = TRUE)
+
