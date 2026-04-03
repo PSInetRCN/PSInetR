@@ -11,6 +11,7 @@ library(PSInetR)
 library(dplyr)
 library(DBI)
 library(duckdb)
+library(lubridate)
 
 
 ## ----connect------------------------------------------------------------------
@@ -44,41 +45,62 @@ db_schema <- DBI::dbGetQuery(con, "
 ")
 
 # View the schema of a specific table
-press_chamb_fields <- dbListFields(con, "press_chamb_wp")
-print(press_chamb_fields)
+chamber_wp_fields <- dbListFields(con, "chamber_wp")
+print(chamber_wp_fields)
+
+# Check the dimensions of core tables
+core_tables <- c("study_site", "plot", "plant", "treatment", "data_description", "addtl_data", "authorship")
+for(table in core_tables) {
+  count <- dbGetQuery(con, paste("SELECT COUNT(*) as count FROM", table))
+  cat(table, ":", count$count, "records\n")
+}
+
+# Check the dimensions of measurement tables  
+measurement_tables <- c("chamber_wp", "auto_wp", "soil_var", "met_var", "auto_wp_sensor")
+for(table in measurement_tables) {
+  count <- dbGetQuery(con, paste("SELECT COUNT(*) as count FROM", table))
+  cat(table, ":", count$count, "records\n")
+}
 
 
 ## ----basic_queries------------------------------------------------------------
 # Get a list of all study sites
-study_sites <- dbGetQuery(con, "SELECT dataset_name, latitude_wgs84, longitude_wgs84 FROM study_site LIMIT 10")
+study_sites <- tbl(con, "study_site") |>
+  select(dataset_name, latitude_wgs84, longitude_wgs84) |>
+  head(10) |>
+  collect()
 print(study_sites)
 
 # Get plant species information
-plant_species <- dbGetQuery(con, "SELECT DISTINCT genus, specific_epithet FROM plants LIMIT 10")
+plant_species <- tbl(con, "plant") |>
+  select(genus, specific_epithet) |>
+  distinct() |>
+  head(10) |>
+  collect()
 print(plant_species)
 
 # Get statistics on water potential measurements
-wp_stats <- dbGetQuery(con, "
-  SELECT 
-    COUNT(*) as count,
-    AVG(water_potential_mean) as avg_potential,
-    MIN(water_potential_mean) as min_potential,
-    MAX(water_potential_mean) as max_potential
-  FROM press_chamb_wp
-  WHERE water_potential_mean IS NOT NULL
-")
+wp_stats <- tbl(con, "chamber_wp") |>
+  filter(!is.na(water_potential_mean)) |>
+  summarize(
+    count = n(),
+    avg_potential = mean(water_potential_mean, na.rm = TRUE),
+    min_potential = min(water_potential_mean, na.rm = TRUE),
+    max_potential = max(water_potential_mean, na.rm = TRUE)
+  ) |>
+  collect()
 print(wp_stats)
 
 
 ## ----dplyr_queries------------------------------------------------------------
 # Create references to the tables
-press_chamb_wp_tbl <- tbl(con, "press_chamb_wp")
-plants_tbl <- tbl(con, "plants")
-plots_tbl <- tbl(con, "plots")
+chamber_wp_tbl <- tbl(con, "chamber_wp")
+plant_tbl <- tbl(con, "plant")
+plot_tbl <- tbl(con, "plot")
 
 # Query using dplyr syntax for water potential by species
-wp_by_species <- press_chamb_wp_tbl |>
-  inner_join(plants_tbl, by = c("dataset_name", "individual_id")) |>
+wp_by_species <- chamber_wp_tbl |>
+  inner_join(plant_tbl, by = c("dataset_name", "individual_id")) |>
   group_by(genus, specific_epithet) |>
   summarize(
     count = n(),
@@ -92,7 +114,7 @@ wp_by_species <- press_chamb_wp_tbl |>
 print(wp_by_species)
 
 # Find measurements by organ type
-organ_summary <- press_chamb_wp_tbl |>
+organ_summary <- chamber_wp_tbl |>
   group_by(organ, canopy_position) |>
   summarize(
     count = n(),
@@ -108,12 +130,12 @@ print(organ_summary)
 
 ## ----advanced_analyses--------------------------------------------------------
 # Analyze seasonal patterns in water potential
-seasonal_patterns <- press_chamb_wp_tbl |>
+seasonal_patterns <- chamber_wp_tbl |>
   # must collect first because substr can't be run by db
   collect() |>
   # Extract month from date (YYYYMMDD format)
-  mutate(month = substr(date, 5, 6)) |>
-  group_by(month) %>%
+  mutate(month = month(date)) |>
+  group_by(month) |>
   summarize(
     avg_potential = mean(water_potential_mean, na.rm = TRUE),
     sd_potential = sd(water_potential_mean, na.rm = TRUE),
@@ -122,11 +144,11 @@ seasonal_patterns <- press_chamb_wp_tbl |>
 
 print(seasonal_patterns)
 
-# Comparing water potential with soil moisture
-soil_wp_comparison <- press_chamb_wp_tbl |>
-  # Join with soil moisture data on dataset_name, plot_id, and date
+# Comparing water potential with soil variables
+soil_wp_comparison <- chamber_wp_tbl |>
+  # Join with soil data on dataset_name, plot_id, and date
   inner_join(
-    tbl(con, "soil_moisture"),
+    tbl(con, "soil_var"),
     by = c("dataset_name", "plot_id", "date")
   ) |>
   # Group by soil moisture categories (using a window function)
@@ -137,22 +159,22 @@ soil_wp_comparison <- press_chamb_wp_tbl |>
       swc_mean_shallow < 0.3 ~ "medium",
       TRUE ~ "high"
     )
-  ) %>%
-  group_by(swc_shallow_category) %>%
+  ) |>
+  group_by(swc_shallow_category) |>
   summarize(
     avg_water_potential = mean(water_potential_mean, na.rm = TRUE),
     sd_water_potential = sd(water_potential_mean, na.rm = TRUE),
     n_observations = n()
-  ) %>%
+  ) |>
   collect()
 
 print(soil_wp_comparison)
 
-# Analyzing the relationship between environmental variables and water potential
-env_wp_comparison <- press_chamb_wp_tbl |>
-  # Join with environmental data on dataset_name and date
+# Analyzing the relationship between meteorological variables and water potential
+met_wp_comparison <- chamber_wp_tbl |>
+  # Join with meteorological data on dataset_name and date
   inner_join(
-    tbl(con, "env_vars"),
+    tbl(con, "met_var"),
     by = c("dataset_name", "date")
   ) |>
   # Select relevant columns
@@ -173,7 +195,7 @@ env_wp_comparison <- press_chamb_wp_tbl |>
     n_observations = n()
   ) 
 
-print(env_wp_comparison)
+print(met_wp_comparison)
 
 
 
@@ -182,14 +204,14 @@ library(ggplot2)
 library(lubridate)
 
 # Get water potential data for visualization
-wp_time_data <- tbl(con, "press_chamb_wp") |>
+wp_time_data <- tbl(con, "chamber_wp") |>
   filter(!is.na(water_potential_mean)) |>
   collect() |>
   mutate(date_parsed = ymd(as.character(date)))  # Convert YYYYMMDD to Date
 
 # Get water potential by species
-wp_species <- tbl(con, "press_chamb_wp") |>
-  inner_join(tbl(con, "plants"), by = c("dataset_name", "individual_id", "plot_id")) %>%
+wp_species <- tbl(con, "chamber_wp") |>
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id", "plot_id")) |>
   group_by(genus, specific_epithet) |>
   summarize(
     mean_wp = mean(water_potential_mean, na.rm = TRUE),
@@ -202,16 +224,22 @@ wp_species <- tbl(con, "press_chamb_wp") |>
 # Create species name
 wp_species$species <- paste(wp_species$genus, wp_species$specific_epithet)
 
-# Plot water potential by species
-ggplot(wp_species, aes(x = reorder(species, mean_wp), y = mean_wp)) +
-  geom_bar(stat = "identity") +
+# Show only the 20 species with most extreme (lowest) water potentials
+top_species <- wp_species |>
+  arrange(mean_wp) |>
+  head(20)
+
+top_species$species <- paste(top_species$genus, top_species$specific_epithet)
+
+ggplot(top_species, aes(x = reorder(species, mean_wp), y = mean_wp)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
   geom_errorbar(aes(ymin = mean_wp - sd_wp, ymax = mean_wp + sd_wp), width = 0.2) +
   labs(
-    title = "Average Water Potential by Species",
+    title = "Top 20 Species with Lowest Water Potential",
     x = "Species",
     y = "Water Potential (MPa)"
   ) +
-  coord_flip() +  # Flip coordinates for better readability
+  coord_flip() +
   theme_minimal()
 
 # Don't forget to disconnect
@@ -222,45 +250,33 @@ dbDisconnect(con, shutdown = TRUE)
 # Connect to database
 con <- dbConnect(duckdb::duckdb(), get_db_path())
 
-# Query to combine manual and automated measurements
-combined_query <- "
-SELECT
-  'manual' as measurement_type,
-  pc.dataset_name,
-  pc.individual_id,
-  pc.date,
-  pc.time,
-  pc.water_potential_mean,
-  pc.water_potential_sd,
-  p.genus,
-  p.specific_epithet
-FROM press_chamb_wp pc
-JOIN plants p ON pc.dataset_name = p.dataset_name AND pc.individual_id = p.individual_id
-WHERE pc.water_potential_mean IS NOT NULL
+# Combine automated and manual measurements using dplyr
+# First get automated measurements
+auto_data <- tbl(con, "auto_wp") |>
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id")) |>
+  filter(!is.na(water_potential_mean)) |>
+  select(dataset_name, individual_id, date, time, 
+         water_potential_mean, water_potential_sd, genus, specific_epithet) |>
+  mutate(measurement_type = "automated") |>
+  head(500) |>  # Limit to avoid memory issues
+  collect()
 
-UNION ALL
+# Then get manual measurements  
+manual_data <- tbl(con, "chamber_wp") |>
+  inner_join(tbl(con, "plant"), by = c("dataset_name", "individual_id")) |>
+  filter(!is.na(water_potential_mean)) |>
+  select(dataset_name, individual_id, date, time,
+         water_potential_mean, water_potential_sd, genus, specific_epithet) |>
+  mutate(measurement_type = "manual") |>
+  head(500) |>  # Limit to avoid memory issues
+  collect()
 
-SELECT
-  'automated' as measurement_type,
-  a.dataset_name,
-  a.individual_id,
-  a.date,
-  a.time,
-  a.water_potential_mean,
-  a.water_potential_sd,
-  p.genus,
-  p.specific_epithet
-FROM auto_wp a
-JOIN plants p ON a.dataset_name = p.dataset_name AND a.individual_id = p.individual_id
-WHERE a.water_potential_mean IS NOT NULL
-LIMIT 1000  -- Limit to avoid memory issues
-"
+# Combine the datasets
+combined_data <- bind_rows(auto_data, manual_data)
 
-combined_data <- dbGetQuery(con, combined_query)
-
-# Compare manual vs automated measurements
-measurement_summary <- combined_data %>%
-  group_by(measurement_type) %>%
+# Compare automated vs manual measurements
+measurement_summary <- combined_data |>
+  group_by(measurement_type) |>
   summarize(
     count = n(),
     avg_potential = mean(water_potential_mean, na.rm = TRUE),
@@ -280,9 +296,9 @@ dbDisconnect(con, shutdown = TRUE)
 con <- dbConnect(duckdb::duckdb(), get_db_path())
 
 # Efficient query - filtering happens in database
-efficient_query <- tbl(con, "press_chamb_wp") %>%
-  filter(water_potential_mean < -1.0) %>%
-  select(dataset_name, individual_id, date, water_potential_mean) %>%
+efficient_query <- tbl(con, "chamber_wp") |>
+  filter(water_potential_mean < -1.0) |>
+  select(dataset_name, individual_id, date, water_potential_mean) |>
   collect()
 
 # Disconnect

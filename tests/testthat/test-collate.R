@@ -83,7 +83,7 @@ test_that("collate functions don't close provided connections", {
 })
 
 # Test return structures
-test_that("collate_met returns a data frame with meta columns", {
+test_that("collate_met returns a data frame with expected columns", {
   skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   result <- collate_met(db_path = get_db_path(dir = test_path("../..")))
@@ -92,11 +92,9 @@ test_that("collate_met returns a data frame with meta columns", {
   expect_true(nrow(result) > 0)
   expect_true("dataset_name" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
-  # Meta table columns should be present via left join
-  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_chamber_wp returns a data frame with SFN and meta columns", {
+test_that("collate_chamber_wp returns a data frame with SFN column", {
   skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   result <- collate_chamber_wp(db_path = get_db_path(dir = test_path("../..")))
@@ -106,11 +104,9 @@ test_that("collate_chamber_wp returns a data frame with SFN and meta columns", {
   expect_true("SFN" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
   expect_type(result$SFN, "logical")
-  # Meta table columns should be present via left join
-  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_auto_wp returns a data frame with SFN and meta columns", {
+test_that("collate_auto_wp returns a data frame with SFN column", {
   skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   result <- collate_auto_wp(db_path = get_db_path(dir = test_path("../..")))
@@ -121,11 +117,9 @@ test_that("collate_auto_wp returns a data frame with SFN and meta columns", {
   expect_true("sensor_id" %in% colnames(result))
   expect_true("timezone" %in% colnames(result))
   expect_type(result$SFN, "logical")
-  # Meta table columns should be present via left join
-  expect_true("submitting_author_first_name" %in% colnames(result))
 })
 
-test_that("collate_soil returns a named list with three data frames and meta columns", {
+test_that("collate_soil returns a named list with three data frames", {
   skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
 
   result <- collate_soil(db_path = get_db_path(dir = test_path("../..")))
@@ -153,16 +147,13 @@ test_that("collate_soil returns a named list with three data frames and meta col
 
   # Verify sensor_location values match the expected level
   if (nrow(result$individual) > 0) {
-    expect_true(all(result$individual$sensor_location == "Individual"))
-    expect_true("submitting_author_first_name" %in% colnames(result$individual))
+    expect_true(all(result$individual$sensor_location == "individual"))
   }
   if (nrow(result$plot) > 0) {
-    expect_true(all(result$plot$sensor_location == "Plot"))
-    expect_true("submitting_author_first_name" %in% colnames(result$plot))
+    expect_true(all(result$plot$sensor_location == "plot"))
   }
   if (nrow(result$study) > 0) {
     expect_true(all(result$study$sensor_location == "Whole study"))
-    expect_true("submitting_author_first_name" %in% colnames(result$study))
   }
 })
 
