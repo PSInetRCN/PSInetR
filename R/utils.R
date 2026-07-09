@@ -1,3 +1,24 @@
+#' Apply Flag Table to Data
+#'
+#' Masks values in a data frame with NA where the corresponding flag is FALSE.
+#' Flag tables have the same column structure as data tables but contain logical
+#' values (TRUE = valid, FALSE = flagged). Rows must be in the same order.
+#'
+#' @param data A collected data frame.
+#' @param flags A collected flag data frame with the same columns and row order.
+#'
+#' @return The data frame with flagged values replaced by NA.
+#' @keywords internal
+mask_with_flags <- function(data, flags) {
+  mask_cols <- setdiff(names(flags), "dataset_name")
+  for (col in mask_cols) {
+    if (col %in% names(data) && is.logical(flags[[col]])) {
+      data[[col]][!flags[[col]]] <- NA
+    }
+  }
+  data
+}
+
 #' Get Default Data Directory
 #'
 #' Returns the default directory for storing downloaded data.
