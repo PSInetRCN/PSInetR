@@ -4,7 +4,12 @@
 \alias{collate_auto_wp}
 \title{Collate Automated Water Potential Data with Metadata}
 \usage{
-collate_auto_wp(con = NULL, db_path = NULL, dataset_name = NULL)
+collate_auto_wp(
+  con = NULL,
+  db_path = NULL,
+  dataset_name = NULL,
+  apply_flags = FALSE
+)
 }
 \arguments{
 \item{con}{A DBI database connection object. If NULL, will create a connection using db_path.}
@@ -14,6 +19,11 @@ Only used if con is NULL. If both are NULL, an error is raised.}
 
 \item{dataset_name}{Optional character vector of dataset names to filter results.
 If NULL (default), returns data for all available datasets with automated water potential data.}
+
+\item{apply_flags}{Logical. If TRUE, values flagged as out-of-range or erroneous
+in the accompanying flag tables (auto_wp_flag, auto_wp_sensor_flag) are replaced
+with NA before joining. Default is FALSE (raw, unmodified values are used). See
+the range checks documentation for details on how flags are determined.}
 }
 \value{
 A data frame with automated water potential measurements joined with complete
@@ -45,5 +55,8 @@ auto_data <- collate_auto_wp(
   db_path = "psinet.duckdb",
   dataset_name = c("Smith_1", "Jones_2")
 )
+
+# Use flag-filtered data (flagged values become NA)
+auto_data <- collate_auto_wp(db_path = "psinet.duckdb", apply_flags = TRUE)
 }
 }

@@ -269,6 +269,51 @@ test_that("collate_auto_wp only includes plants with sensor_id", {
   }
 })
 
+# Test apply_flags parameter
+test_that("apply_flags = TRUE uses flag tables for collate_met", {
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
+
+  result_raw  <- collate_met(db_path = get_db_path(dir = test_path("../..")), apply_flags = FALSE)
+  result_flag <- collate_met(db_path = get_db_path(dir = test_path("../..")), apply_flags = TRUE)
+
+  expect_s3_class(result_flag, "data.frame")
+  expect_true("dataset_name" %in% colnames(result_flag))
+  expect_true("timezone" %in% colnames(result_flag))
+})
+
+test_that("apply_flags = TRUE uses flag tables for collate_chamber_wp", {
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
+
+  result_raw  <- collate_chamber_wp(db_path = get_db_path(dir = test_path("../..")), apply_flags = FALSE)
+  result_flag <- collate_chamber_wp(db_path = get_db_path(dir = test_path("../..")), apply_flags = TRUE)
+
+  expect_s3_class(result_flag, "data.frame")
+  expect_identical(colnames(result_raw), colnames(result_flag))
+})
+
+test_that("apply_flags = TRUE uses flag tables for collate_auto_wp", {
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
+
+  result_raw  <- collate_auto_wp(db_path = get_db_path(dir = test_path("../..")), apply_flags = FALSE)
+  result_flag <- collate_auto_wp(db_path = get_db_path(dir = test_path("../..")), apply_flags = TRUE)
+
+  expect_s3_class(result_flag, "data.frame")
+  # apply_flags should produce at least as many NAs as without flags
+  expect_true(
+    sum(is.na(result_flag$water_potential_mean)) >= sum(is.na(result_raw$water_potential_mean))
+  )
+})
+
+test_that("apply_flags = TRUE uses flag tables for collate_soil", {
+  skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")
+
+  result_raw  <- collate_soil(db_path = get_db_path(dir = test_path("../..")), apply_flags = FALSE)
+  result_flag <- collate_soil(db_path = get_db_path(dir = test_path("../..")), apply_flags = TRUE)
+
+  expect_type(result_flag, "list")
+  expect_named(result_flag, c("individual", "plot", "study"))
+})
+
 # Test that soil filters rows without any soil values
 test_that("collate_soil filters rows without soil measurements", {
   skip_if_not(file.exists(get_db_path(dir = test_path("../.."))), message = "Database not found")

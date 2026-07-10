@@ -8,6 +8,10 @@
 #'   Only used if con is NULL. If both are NULL, an error is raised.
 #' @param dataset_name Optional character vector of dataset names to filter results.
 #'   If NULL (default), returns data for all available datasets.
+#' @param apply_flags Logical. If TRUE, values flagged as out-of-range or erroneous
+#'   in the accompanying flag table (met_var_flag) are replaced with NA before
+#'   joining. Default is FALSE (raw, unmodified values are used). See the range
+#'   checks documentation for details on how flags are determined.
 #'
 #' @return A data frame with meteorological measurements joined with study site metadata.
 #' @export
@@ -27,8 +31,11 @@
 #'   db_path = "psinet.duckdb",
 #'   dataset_name = c("Smith_1", "Jones_2")
 #' )
+#'
+#' # Use flag-filtered data (flagged values become NA)
+#' met_data <- collate_met(db_path = "psinet.duckdb", apply_flags = TRUE)
 #' }
-collate_met <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
+collate_met <- function(con = NULL, db_path = NULL, dataset_name = NULL, apply_flags = FALSE) {
   # Validate input parameters
   if (is.null(con) && is.null(db_path)) {
     cli::cli_abort(
@@ -71,22 +78,43 @@ collate_met <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
 
   # Build lazy references
   site    <- dplyr::tbl(con, "study_site")
-  met_var <- dplyr::tbl(con, "met_var")
   site_tz <- dplyr::tbl(con, "site_tz_tmp")
 
   # Apply dataset filter inside the DB if provided
   if (!is.null(dataset_name)) {
     site    <- site    |> dplyr::filter(.data$dataset_name %in% .env$dataset_name)
-    met_var <- met_var |> dplyr::filter(.data$dataset_name %in% .env$dataset_name)
     site_tz <- site_tz |> dplyr::filter(.data$dataset_name %in% .env$dataset_name)
   }
 
-  # Perform all joins inside DuckDB (including timezone), then collect once
-  all_met <- site |>
-    dplyr::inner_join(met_var, by = dplyr::join_by(dataset_name)) |>
-    dplyr::left_join(site_tz, by = dplyr::join_by(dataset_name)) |>
-    dplyr::distinct() |>
-    dplyr::collect()
+  if (apply_flags) {
+    # Collect data and flags together so we can mask before joining
+    met_filter <- if (!is.null(dataset_name)) {
+      function(tbl) dplyr::filter(tbl, .data$dataset_name %in% .env$dataset_name)
+    } else {
+      identity
+    }
+    met_var <- met_filter(dplyr::tbl(con, "met_var")) |> dplyr::collect()
+    met_flags <- met_filter(dplyr::tbl(con, "met_var_flag")) |> dplyr::collect()
+    met_var <- mask_with_flags(met_var, met_flags)
+
+    site_collected <- site |> dplyr::collect() |>
+      dplyr::left_join(dplyr::collect(site_tz), by = "dataset_name")
+
+    all_met <- site_collected |>
+      dplyr::inner_join(met_var, by = "dataset_name") |>
+      dplyr::distinct()
+  } else {
+    # Perform all joins inside DuckDB (including timezone), then collect once
+    met_var <- dplyr::tbl(con, "met_var")
+    if (!is.null(dataset_name)) {
+      met_var <- met_var |> dplyr::filter(.data$dataset_name %in% .env$dataset_name)
+    }
+    all_met <- site |>
+      dplyr::inner_join(met_var, by = dplyr::join_by(dataset_name)) |>
+      dplyr::left_join(site_tz, by = dplyr::join_by(dataset_name)) |>
+      dplyr::distinct() |>
+      dplyr::collect()
+  }
 
   return(all_met)
 }
@@ -104,6 +132,10 @@ collate_met <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
 #'   Only used if con is NULL. If both are NULL, an error is raised.
 #' @param dataset_name Optional character vector of dataset names to filter results.
 #'   If NULL (default), returns data for all available datasets with pressure chamber data.
+#' @param apply_flags Logical. If TRUE, values flagged as out-of-range or erroneous
+#'   in the accompanying flag table (chamber_wp_flag) are replaced with NA before
+#'   joining. Default is FALSE (raw, unmodified values are used). See the range
+#'   checks documentation for details on how flags are determined.
 #'
 #' @return A data frame with pressure chamber measurements joined with complete metadata.
 #'   Includes a logical SFN column indicating SAPFLUXNET membership.
@@ -124,8 +156,11 @@ collate_met <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
 #'   db_path = "psinet.duckdb",
 #'   dataset_name = c("Smith_1", "Jones_2")
 #' )
+#'
+#' # Use flag-filtered data (flagged values become NA)
+#' chamber_data <- collate_chamber_wp(db_path = "psinet.duckdb", apply_flags = TRUE)
 #' }
-collate_chamber_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
+collate_chamber_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL, apply_flags = FALSE) {
   # Validate input parameters
   if (is.null(con) && is.null(db_path)) {
     cli::cli_abort(
@@ -195,6 +230,13 @@ collate_chamber_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) 
   chamber_wp <- dplyr::tbl(con, "chamber_wp") |>
     dplyr::filter(.data$dataset_name %in% chamb_datasets) |>
     dplyr::collect()
+
+  if (apply_flags) {
+    chamber_flags <- dplyr::tbl(con, "chamber_wp_flag") |>
+      dplyr::filter(.data$dataset_name %in% chamb_datasets) |>
+      dplyr::collect()
+    chamber_wp <- mask_with_flags(chamber_wp, chamber_flags)
+  }
 
   sfn <- dplyr::tbl(con, "sapfluxnet") |>
     dplyr::filter(.data$dataset_name %in% chamb_datasets) |>
@@ -268,6 +310,10 @@ collate_chamber_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) 
 #'   Only used if con is NULL. If both are NULL, an error is raised.
 #' @param dataset_name Optional character vector of dataset names to filter results.
 #'   If NULL (default), returns data for all available datasets with automated water potential data.
+#' @param apply_flags Logical. If TRUE, values flagged as out-of-range or erroneous
+#'   in the accompanying flag tables (auto_wp_flag, auto_wp_sensor_flag) are replaced
+#'   with NA before joining. Default is FALSE (raw, unmodified values are used). See
+#'   the range checks documentation for details on how flags are determined.
 #'
 #' @return A data frame with automated water potential measurements joined with complete
 #'   metadata. Measurements are filtered to sensor deployment periods (between start_date
@@ -289,8 +335,11 @@ collate_chamber_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) 
 #'   db_path = "psinet.duckdb",
 #'   dataset_name = c("Smith_1", "Jones_2")
 #' )
+#'
+#' # Use flag-filtered data (flagged values become NA)
+#' auto_data <- collate_auto_wp(db_path = "psinet.duckdb", apply_flags = TRUE)
 #' }
-collate_auto_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
+collate_auto_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL, apply_flags = FALSE) {
   # Validate input parameters
   if (is.null(con) && is.null(db_path)) {
     cli::cli_abort(
@@ -364,6 +413,13 @@ collate_auto_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
   auto_wp <- dplyr::tbl(con, "auto_wp") |>
     dplyr::filter(.data$dataset_name %in% auto_datasets) |>
     dplyr::collect()
+
+  if (apply_flags) {
+    auto_wp_flags <- dplyr::tbl(con, "auto_wp_flag") |>
+      dplyr::filter(.data$dataset_name %in% auto_datasets) |>
+      dplyr::collect()
+    auto_wp <- mask_with_flags(auto_wp, auto_wp_flags)
+  }
 
   sfn <- dplyr::tbl(con, "sapfluxnet") |>
     dplyr::filter(.data$dataset_name %in% auto_datasets) |>
@@ -463,6 +519,10 @@ collate_auto_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
 #'   Only used if con is NULL. If both are NULL, an error is raised.
 #' @param dataset_name Optional character vector of dataset names to filter results.
 #'   If NULL (default), returns data for all available datasets with soil data.
+#' @param apply_flags Logical. If TRUE, values flagged as out-of-range or erroneous
+#'   in the accompanying flag table (soil_var_flag) are replaced with NA before
+#'   joining. Default is FALSE (raw, unmodified values are used). See the range
+#'   checks documentation for details on how flags are determined.
 #'
 #' @return A named list with three elements:
 #'   \describe{
@@ -494,8 +554,11 @@ collate_auto_wp <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
 #'   db_path = "psinet.duckdb",
 #'   dataset_name = c("Smith_1", "Jones_2")
 #' )
+#'
+#' # Use flag-filtered data (flagged values become NA)
+#' soil_data <- collate_soil(db_path = "psinet.duckdb", apply_flags = TRUE)
 #' }
-collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
+collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL, apply_flags = FALSE) {
   # Validate input parameters
   if (is.null(con) && is.null(db_path)) {
     cli::cli_abort(
@@ -553,6 +616,13 @@ collate_soil <- function(con = NULL, db_path = NULL, dataset_name = NULL) {
   soil_var <- dplyr::tbl(con, "soil_var") |>
     dplyr::filter(.data$dataset_name %in% site_datasets) |>
     dplyr::collect()
+
+  if (apply_flags) {
+    soil_flags <- dplyr::tbl(con, "soil_var_flag") |>
+      dplyr::filter(.data$dataset_name %in% site_datasets) |>
+      dplyr::collect()
+    soil_var <- mask_with_flags(soil_var, soil_flags)
+  }
 
   # Load data_description to get sensor_location for soil variables
   data_desc <- dplyr::tbl(con, "data_description") |>
