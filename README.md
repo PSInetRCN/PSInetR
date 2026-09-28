@@ -52,7 +52,7 @@ The PSInet database includes:
 
 - Data Schema ([Link](https://github.com/PSInetRCN/PSInetDB/blob/main/docs/schema/data_schema.md))
 - Walkthrough for enabling Github access and accessing database ([Link](https://github.com/PSInetRCN/PSInetDB/blob/main/github-pat-rstudio-guide.md))
-- Video walkthrough of Github and database access ([Link]())
+- Video walkthrough of Github and database access ([Link](docs/psinet_github_access.mp4))
 
 ## Installation
 
