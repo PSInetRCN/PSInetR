@@ -48,6 +48,12 @@ The PSInet database includes:
   - Vegetation functioning under climate change
   - Connections between environmental drivers and physiological responses
 
+## Quick Links
+
+- Data Schema ([Link](https://github.com/PSInetRCN/PSInetDB/blob/main/docs/schema/data_schema.md))
+- Walkthrough for enabling Github access and accessing database ([Link](https://github.com/PSInetRCN/PSInetDB/blob/main/github-pat-rstudio-guide.md))
+- Video walkthrough of Github and database access ([Link]())
+
 ## Installation
 
 You can install the development version of PSInetR from GitHub with:
